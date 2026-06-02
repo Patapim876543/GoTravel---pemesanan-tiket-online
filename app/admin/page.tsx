@@ -451,7 +451,13 @@ export default function AdminPage() {
       // Apply overrides to mock list and real list
       const allOrders = [
         ...mockList.map(o => ({ ...o, isMock: true })),
-        ...(oList || []).map(o => ({ ...o, isMock: false }))
+        ...(oList || []).map(o => {
+          let mappedStatus = o.status;
+          if (o.status === "aktif") mappedStatus = "paid";
+          else if (o.status === "direfund") mappedStatus = "refunded";
+          else if (o.status === "dibatalkan") mappedStatus = "cancelled";
+          return { ...o, status: mappedStatus, isMock: false };
+        })
       ];
 
       const processedOrders = allOrders.map((ord: any) => {

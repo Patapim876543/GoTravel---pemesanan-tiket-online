@@ -92,7 +92,15 @@ export default function HistoryPage() {
         hiddenIds = JSON.parse(localStorage.getItem("hidden_orders") || "[]");
       }
       
-      const filtered = (data || []).filter((o) => !hiddenIds.includes(o.id));
+      const mapped = (data || []).map((o) => {
+        let mappedStatus = o.status;
+        if (o.status === "aktif") mappedStatus = "paid";
+        else if (o.status === "direfund") mappedStatus = "refunded";
+        else if (o.status === "dibatalkan") mappedStatus = "cancelled";
+        return { ...o, status: mappedStatus };
+      });
+      
+      const filtered = mapped.filter((o) => !hiddenIds.includes(o.id));
       setOrders(filtered);
     } catch (err: any) {
       setOrders([]);
