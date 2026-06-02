@@ -34,7 +34,7 @@ function CheckoutForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showToast } = useToast();
-  const { balance, fetchBalance } = useAuth();
+  const { balance, fetchBalance, user } = useAuth();
 
   const scheduleId = searchParams.get("scheduleId") || "";
   const selectedClass = searchParams.get("class") || "";
@@ -55,6 +55,32 @@ function CheckoutForm() {
   // Top Up states
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("100000");
+
+  // Admin / Staff customer selection states
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [buyerUserId, setBuyerUserId] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      if (user && user.role !== "user") {
+        setUsersLoading(true);
+        try {
+          const res = await apiRequest<any>("/api/admin/users?role=user");
+          const list = Array.isArray(res) ? res : res.data || [];
+          setUsersList(list);
+          if (list.length > 0) {
+            setBuyerUserId(list[0].id);
+          }
+        } catch (err: any) {
+          console.error("Gagal memuat daftar customer:", err);
+        } finally {
+          setUsersLoading(false);
+        }
+      }
+    };
+    loadUsers();
+  }, [user]);
 
   const handleTopUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,8 +231,23 @@ function CheckoutForm() {
       return;
     }
 
-    if (balance < selectedTicket.price) {
-      showToast("Saldo Anda tidak mencukupi. Silakan hubungi Admin untuk topup.", "error");
+    if (user && user.role !== "user" && !buyerUserId) {
+      showToast("Harap pilih akun customer pembeli.", "error");
+      return;
+    }
+
+    const selectedCustomer = usersList.find((u) => u.id === buyerUserId);
+    const checkBalance = user && user.role !== "user"
+      ? (selectedCustomer ? Number(selectedCustomer.balance) : 0)
+      : balance;
+
+    if (checkBalance < selectedTicket.price) {
+      showToast(
+        user && user.role !== "user"
+          ? "Saldo customer terpilih tidak mencukupi."
+          : "Saldo Anda tidak mencukupi. Silakan hubungi Admin untuk topup.",
+        "error"
+      );
       return;
     }
 
@@ -264,6 +305,7 @@ function CheckoutForm() {
             passengerIdNumber,
             passengerPhone,
             notes: notes || undefined,
+            ...(user && user.role !== "user" ? { buyerUserId } : {})
           },
         });
 
@@ -299,6 +341,11 @@ function CheckoutForm() {
       minute: "2-digit",
     });
   };
+
+  const selectedCustomer = usersList.find((u) => u.id === buyerUserId);
+  const checkBalance = user && user.role !== "user"
+    ? (selectedCustomer ? Number(selectedCustomer.balance) : 0)
+    : balance;
 
   if (loading) {
     return (
@@ -355,6 +402,35 @@ function CheckoutForm() {
             <h3 className="font-bold text-slate-900 border-b border-slate-100 pb-3 mb-2">
               Informasi Penumpang
             </h3>
+
+            {/* Admin / Staff customer buyer selection dropdown */}
+            {user && user.role !== "user" && (
+              <div className="bg-slate-50 border border-slate-200/50 rounded-xl p-4 mb-4">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Akun Pembeli (Customer) <span className="text-rose-500">*</span>
+                </label>
+                {usersLoading ? (
+                  <p className="text-xs text-slate-455 animate-pulse">Memuat daftar customer...</p>
+                ) : (
+                  <select
+                    required
+                    value={buyerUserId}
+                    onChange={(e) => setBuyerUserId(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 transition-all text-sm text-slate-800 bg-white font-medium"
+                  >
+                    <option value="">-- Pilih Akun Customer --</option>
+                    {usersList.map((usr) => (
+                      <option key={usr.id} value={usr.id}>
+                        {usr.name} (@{usr.username}) - Saldo: {formatRupiah(Number(usr.balance))}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <p className="text-[10px] text-slate-450 mt-2 leading-relaxed">
+                  * Sebagai <strong>{user.role === "admin" ? "Administrator" : "Petugas"}</strong>, tiket yang Anda belikan akan terdaftar atas nama customer di atas dan memotong saldonya.
+                </p>
+              </div>
+            )}
             
             {/* Name */}
             <div>
@@ -425,24 +501,26 @@ function CheckoutForm() {
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm text-slate-600 border-t border-slate-200/50 pt-2">
-                <span>Saldo Anda saat ini</span>
+                <span>{user && user.role !== "user" ? "Saldo Customer saat ini" : "Saldo Anda saat ini"}</span>
                 <span className="font-bold flex items-center gap-1.5 text-emerald-700">
                   <WalletIcon size={14} />
-                  {formatRupiah(balance)}
+                  {formatRupiah(checkBalance)}
                 </span>
               </div>
               
-              {selectedTicket && balance < selectedTicket.price && (
+              {selectedTicket && checkBalance < selectedTicket.price && (
                 <div className="bg-rose-50 border border-rose-100 text-rose-800 p-3.5 rounded-xl text-xs font-semibold mt-2 space-y-2.5">
-                  <p>Peringatan: Saldo Anda tidak mencukupi untuk melakukan transaksi ini.</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowTopUpModal(true)}
-                    className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <WalletIcon size={14} />
-                    <span>Top Up Saldo Sekarang</span>
-                  </button>
+                  <p>Peringatan: Saldo {user && user.role !== "user" ? "customer" : "Anda"} tidak mencukupi untuk melakukan transaksi ini.</p>
+                  {user && user.role === "user" && (
+                    <button
+                      type="button"
+                      onClick={() => setShowTopUpModal(true)}
+                      className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <WalletIcon size={14} />
+                      <span>Top Up Saldo Sekarang</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -450,7 +528,7 @@ function CheckoutForm() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={submitting || !selectedTicket || balance < selectedTicket.price}
+              disabled={submitting || !selectedTicket || checkBalance < selectedTicket.price}
               className="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white disabled:text-slate-400 font-semibold rounded-xl transition-all shadow-md shadow-blue-500/15 disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer"
             >
               {submitting ? (

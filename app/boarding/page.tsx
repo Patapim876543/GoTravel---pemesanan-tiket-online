@@ -209,13 +209,23 @@ export default function BoardingPage() {
     setScanSuccess(false);
 
     // Simulate 1.5 seconds verification time
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsScanning(false);
       setScanSuccess(true);
       playScanBeep();
 
       // Write boarding status to localStorage
       if (orderToScan) {
+        if (!orderToScan.id.startsWith("mock-order-")) {
+          try {
+            await apiRequest(`/api/tickets/${orderToScan.id}/boarding`, {
+              method: "PATCH"
+            });
+          } catch (apiErr: any) {
+            console.warn("Backend API boarding failed, using local fallback:", apiErr);
+          }
+        }
+
         const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
         storedBoarding[orderToScan.id] = "Boarded";
         localStorage.setItem("local_boarding_status", JSON.stringify(storedBoarding));

@@ -475,7 +475,7 @@ export default function AdminPage() {
             price: ord.ticket?.price || 0,
             seatNumber: ord.ticket?.seatNumber || "-",
             isMock: ord.isMock,
-            refundReason: ord.notes || "",
+            refundReason: ord.refundReason || ord.notes || "",
             transportType: ord.ticket?.schedule?.route?.transportType || "kereta"
           });
         }
@@ -531,24 +531,11 @@ export default function AdminPage() {
           localStorage.setItem("mock_orders", JSON.stringify(updated));
         }
       } else {
-        // Try to call backend API
-        try {
-          await apiRequest(`/api/orders/${order.id}/refund`, {
-            method: "POST",
-            body: { refund_reason: order.refundReason || "Disetujui Admin" }
-          });
-        } catch (err) {
-          console.warn("Backend API refund failed, using simulated refund fallback:", err);
-          // Fallback: Add mock topup to user's account in localStorage
-          const storedTopups = localStorage.getItem("mock_topups") || "[]";
-          const topups = JSON.parse(storedTopups);
-          topups.push({
-            amount: Number(order.price) || 0,
-            date: new Date().toISOString(),
-            description: `Refund Tiket ${order.vehicleName} - Order ${order.id.substring(0, 8)}`
-          });
-          localStorage.setItem("mock_topups", JSON.stringify(topups));
-        }
+        // Call backend API
+        await apiRequest(`/api/orders/${order.id}/refund`, {
+          method: "POST",
+          body: { refund_reason: order.refundReason || "Disetujui Admin" }
+        });
       }
 
       // Update in local_refund_statuses
@@ -1388,54 +1375,60 @@ export default function AdminPage() {
                   </div>
 
                   {/* Menunggu Persetujuan Refund */}
-                  {user.role === "admin" && filteredPendingRefunds.length > 0 && (
+                  {user.role === "admin" && (
                     <div className="bg-white rounded-2xl border border-rose-200/70 p-6 shadow-sm animate-slide-in">
                       <div className="flex items-center gap-2 border-b border-rose-100 pb-3 mb-4 text-rose-700">
-                        <AlertIcon size={20} className="text-rose-600 animate-pulse" />
+                        <AlertIcon size={20} className="text-rose-600 flex-shrink-0" />
                         <h3 className="font-bold text-sm uppercase tracking-wider">Permintaan Refund Menunggu Persetujuan ({filteredPendingRefunds.length})</h3>
                       </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-slate-600 border-collapse">
-                          <thead>
-                            <tr className="text-xs text-slate-400 font-bold border-b border-slate-100 uppercase tracking-wider">
-                              <th className="pb-3 pr-4">ID Order</th>
-                              <th className="pb-3 pr-4">Penumpang</th>
-                              <th className="pb-3 pr-4">Kendaraan</th>
-                              <th className="pb-3 pr-4">Rute</th>
-                              <th className="pb-3 pr-4">Nominal</th>
-                              <th className="pb-3 pr-4">Alasan</th>
-                              <th className="pb-3 text-right">Aksi</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {filteredPendingRefunds.map((ord) => (
-                              <tr key={ord.id} className="hover:bg-rose-50/20 transition-colors">
-                                <td className="py-3.5 pr-4 font-mono text-xs text-slate-800 font-bold">{ord.id.substring(0, 8)}</td>
-                                <td className="py-3.5 pr-4 font-semibold text-slate-800">{ord.passengerName}</td>
-                                <td className="py-3.5 pr-4 text-xs">
-                                  <span className="font-medium">{ord.vehicleName}</span>
-                                  <span className="block text-[10px] text-slate-400">Kursi: {ord.seatNumber}</span>
-                                </td>
-                                <td className="py-3.5 pr-4 text-xs">
-                                  {ord.origin} &rarr; {ord.destination}
-                                </td>
-                                <td className="py-3.5 pr-4 font-extrabold text-rose-600">{formatRupiah(ord.price)}</td>
-                                <td className="py-3.5 pr-4 text-xs italic text-slate-500 max-w-[150px] truncate" title={ord.refundReason}>
-                                  {ord.refundReason || "-"}
-                                </td>
-                                <td className="py-3.5 text-right">
-                                  <button
-                                    onClick={() => handleApproveRefund(ord)}
-                                    className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-500/10 cursor-pointer transition-all"
-                                  >
-                                    Setujui Refund
-                                  </button>
-                                </td>
+                      {filteredPendingRefunds.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 font-semibold text-xs italic">
+                          Tidak ada permintaan refund tiket yang menunggu persetujuan saat ini.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-sm text-slate-600 border-collapse">
+                            <thead>
+                              <tr className="text-xs text-slate-400 font-bold border-b border-slate-100 uppercase tracking-wider">
+                                <th className="pb-3 pr-4">ID Order</th>
+                                <th className="pb-3 pr-4">Penumpang</th>
+                                <th className="pb-3 pr-4">Kendaraan</th>
+                                <th className="pb-3 pr-4">Rute</th>
+                                <th className="pb-3 pr-4">Nominal</th>
+                                <th className="pb-3 pr-4">Alasan</th>
+                                <th className="pb-3 text-right">Aksi</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {filteredPendingRefunds.map((ord) => (
+                                <tr key={ord.id} className="hover:bg-rose-50/20 transition-colors">
+                                  <td className="py-3.5 pr-4 font-mono text-xs text-slate-800 font-bold">{ord.id.substring(0, 8)}</td>
+                                  <td className="py-3.5 pr-4 font-semibold text-slate-800">{ord.passengerName}</td>
+                                  <td className="py-3.5 pr-4 text-xs">
+                                    <span className="font-medium">{ord.vehicleName}</span>
+                                    <span className="block text-[10px] text-slate-400">Kursi: {ord.seatNumber}</span>
+                                  </td>
+                                  <td className="py-3.5 pr-4 text-xs">
+                                    {ord.origin} &rarr; {ord.destination}
+                                  </td>
+                                  <td className="py-3.5 pr-4 font-extrabold text-rose-600">{formatRupiah(ord.price)}</td>
+                                  <td className="py-3.5 pr-4 text-xs italic text-slate-500 max-w-[150px] truncate" title={ord.refundReason}>
+                                    {ord.refundReason || "-"}
+                                  </td>
+                                  <td className="py-3.5 text-right">
+                                    <button
+                                      onClick={() => handleApproveRefund(ord)}
+                                      className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-500/10 cursor-pointer transition-all"
+                                    >
+                                      Setujui Refund
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   )}
 

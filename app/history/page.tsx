@@ -22,6 +22,7 @@ interface OrderItem {
   passengerIdNumber: string;
   passengerPhone: string;
   status: "paid" | "refunded" | "cancelled" | string;
+  boardingStatus?: string;
   notes?: string;
   createdAt: string;
   ticket: {
@@ -60,8 +61,10 @@ export default function HistoryPage() {
   // View ticket details modal
   const [activeTicket, setActiveTicket] = useState<OrderItem | null>(null);
 
-  const boardingStatus = activeTicket && typeof window !== "undefined"
-    ? JSON.parse(localStorage.getItem("local_boarding_status") || "{}")[activeTicket.id] || "Booked"
+  const boardingStatus = activeTicket
+    ? (activeTicket.id.startsWith("mock-order-")
+      ? (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("local_boarding_status") || "{}")[activeTicket.id] || "Booked" : "Booked")
+      : activeTicket.boardingStatus || (activeTicket as any).boarding_status || "Booked")
     : "Booked";
   
   const schId = activeTicket
@@ -264,25 +267,25 @@ export default function HistoryPage() {
     try {
       const isMockRefund = activeRefundOrder.id.startsWith("mock-order-");
 
-      // Save refund details to local_refund_statuses so the admin dashboard can see it,
-      // and so the user's history page displays it as "pending_refund".
-      const localRefundStatuses = JSON.parse(localStorage.getItem("local_refund_statuses") || "{}");
-      localRefundStatuses[activeRefundOrder.id] = {
-        status: "pending_refund",
-        price: activeRefundOrder.ticket.price,
-        passengerName: activeRefundOrder.passengerName,
-        vehicleName: activeRefundOrder.ticket.schedule.vehicleName,
-        origin: activeRefundOrder.ticket.schedule.route.origin,
-        destination: activeRefundOrder.ticket.schedule.route.destination,
-        vehicleCode: activeRefundOrder.ticket.schedule.vehicleCode,
-        seatNumber: activeRefundOrder.ticket.seatNumber,
-        refundReason: refundReason,
-        transportType: activeRefundOrder.ticket.schedule.route.transportType,
-        timestamp: new Date().toISOString()
-      };
-      localStorage.setItem("local_refund_statuses", JSON.stringify(localRefundStatuses));
-
       if (isMockRefund) {
+        // Save refund details to local_refund_statuses so the admin dashboard can see it,
+        // and so the user's history page displays it as "pending_refund".
+        const localRefundStatuses = JSON.parse(localStorage.getItem("local_refund_statuses") || "{}");
+        localRefundStatuses[activeRefundOrder.id] = {
+          status: "pending_refund",
+          price: activeRefundOrder.ticket.price,
+          passengerName: activeRefundOrder.passengerName,
+          vehicleName: activeRefundOrder.ticket.schedule.vehicleName,
+          origin: activeRefundOrder.ticket.schedule.route.origin,
+          destination: activeRefundOrder.ticket.schedule.route.destination,
+          vehicleCode: activeRefundOrder.ticket.schedule.vehicleCode,
+          seatNumber: activeRefundOrder.ticket.seatNumber,
+          refundReason: refundReason,
+          transportType: activeRefundOrder.ticket.schedule.route.transportType,
+          timestamp: new Date().toISOString()
+        };
+        localStorage.setItem("local_refund_statuses", JSON.stringify(localRefundStatuses));
+
         // Also update the status inside mock_orders for consistency
         const stored = localStorage.getItem("mock_orders");
         if (stored) {
@@ -295,6 +298,12 @@ export default function HistoryPage() {
           });
           localStorage.setItem("mock_orders", JSON.stringify(updated));
         }
+      } else {
+        // Call backend API to request refund
+        await apiRequest(`/api/orders/${activeRefundOrder.id}/request-refund`, {
+          method: "POST",
+          body: { refund_reason: refundReason }
+        });
       }
 
       showToast("Refund tiket berhasil diajukan, menunggu konfirmasi Admin.", "success");
