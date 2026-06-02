@@ -139,11 +139,12 @@ function CheckoutForm() {
         } else if (seatsObj && typeof seatsObj === "object") {
           const classKey = selectedClass ? selectedClass.toLowerCase() : "";
           if (classKey && Array.isArray(seatsObj[classKey])) {
-            rawSeats = seatsObj[classKey];
+            rawSeats = seatsObj[classKey].map((s: any) => ({ ...s, seatClass: classKey }));
           } else {
             rawSeats = Object.keys(seatsObj).reduce<any[]>((acc, key) => {
               if (Array.isArray(seatsObj[key])) {
-                return acc.concat(seatsObj[key]);
+                const mapped = seatsObj[key].map((s: any) => ({ ...s, seatClass: key }));
+                return acc.concat(mapped);
               }
               return acc;
             }, []);
