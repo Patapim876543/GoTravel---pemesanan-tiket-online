@@ -1140,6 +1140,23 @@ export default function AdminPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <button
+                        onClick={() => {
+                          if (confirm("Apakah Anda yakin ingin menghapus seluruh data simulasi/mock lokal di browser ini? Ini akan membersihkan riwayat tiket offline, saldo tambahan, dan mereset ke data riil database.")) {
+                            localStorage.removeItem("mock_orders");
+                            localStorage.removeItem("mock_topups");
+                            localStorage.removeItem("local_boarding_status");
+                            localStorage.removeItem("local_refund_statuses");
+                            localStorage.removeItem("local_schedule_gates");
+                            showToast("Seluruh data simulasi lokal berhasil dibersihkan!", "success");
+                            loadDashboardData();
+                            fetchBalance();
+                          }
+                        }}
+                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer transition-all border border-slate-200"
+                      >
+                        <span>🔄 Reset Simulasi</span>
+                      </button>
+                      <button
                         onClick={() => window.print()}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/10 flex items-center gap-1.5 cursor-pointer transition-all"
                       >
