@@ -184,19 +184,39 @@ function CheckoutForm() {
 
           // 2. Fetch seats map from API /api/tickets/seats/{scheduleId}
           const seatData = await apiRequest<any>(`/api/tickets/seats/${scheduleId}`);
-          // Normalize response (array or object containing array)
-          const seatList: SeatTicket[] = Array.isArray(seatData)
-            ? seatData
-            : seatData.seats || seatData.tickets || [];
+          
+          let rawSeats: any[] = [];
+          if (Array.isArray(seatData)) {
+            rawSeats = seatData;
+          } else if (seatData && typeof seatData === "object") {
+            const dataObj = seatData.seats || seatData.tickets || seatData.data || seatData;
+            if (Array.isArray(dataObj)) {
+              rawSeats = dataObj;
+            } else if (dataObj && typeof dataObj === "object") {
+              const classKey = selectedClass ? selectedClass.toLowerCase() : "";
+              if (classKey && Array.isArray(dataObj[classKey])) {
+                rawSeats = dataObj[classKey];
+              } else {
+                rawSeats = Object.keys(dataObj).reduce<any[]>((acc, key) => {
+                  if (Array.isArray(dataObj[key])) {
+                    return acc.concat(dataObj[key]);
+                  }
+                  return acc;
+                }, []);
+              }
+            }
+          }
+
+          const seatList: SeatTicket[] = rawSeats;
           
           // Filter seats by the class selected in the search params
           const classFilteredSeats = selectedClass
-            ? seatList.filter((s) => s.seatClass.toLowerCase() === selectedClass.toLowerCase())
+            ? seatList.filter((s) => s && s.seatClass && s.seatClass.toLowerCase() === selectedClass.toLowerCase())
             : seatList;
 
           // Sort seats alphabetically/numerically (e.g. 1A, 1B, 2A, 2B)
           const sorted = [...classFilteredSeats].sort((a, b) =>
-            a.seatNumber.localeCompare(b.seatNumber, undefined, { numeric: true, sensitivity: "base" })
+            (a.seatNumber || "").localeCompare(b.seatNumber || "", undefined, { numeric: true, sensitivity: "base" })
           );
 
           setSeats(sorted);
