@@ -6,7 +6,7 @@ import { Navbar } from "../components/Navbar";
 import { apiRequest } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Toast";
-import { LoaderIcon, TicketIcon, UserIcon, WalletIcon } from "../components/Icons";
+import { LoaderIcon, TicketIcon, UserIcon, WalletIcon, CloseIcon } from "../components/Icons";
 
 interface SeatTicket {
   id: string; // ticketId
@@ -51,6 +51,37 @@ function CheckoutForm() {
   const [passengerPhone, setPassengerPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [selectedTicket, setSelectedTicket] = useState<SeatTicket | null>(null);
+
+  // Top Up states
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("100000");
+
+  const handleTopUpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amountNum = Number(topUpAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      showToast("Jumlah top up harus valid.", "error");
+      return;
+    }
+
+    try {
+      const stored = localStorage.getItem("mock_topups");
+      const list = stored ? JSON.parse(stored) : [];
+      list.push({
+        amount: amountNum,
+        date: new Date().toISOString(),
+        description: "Top Up Mandiri via Checkout (Simulasi)"
+      });
+      localStorage.setItem("mock_topups", JSON.stringify(list));
+      
+      showToast(`Top up sebesar ${formatRupiah(amountNum)} berhasil!`, "success");
+      setShowTopUpModal(false);
+      setTopUpAmount("100000");
+      await fetchBalance();
+    } catch (err) {
+      showToast("Gagal melakukan top up.", "error");
+    }
+  };
 
   // Load schedule details and seats map
   useEffect(() => {
@@ -402,8 +433,16 @@ function CheckoutForm() {
               </div>
               
               {selectedTicket && balance < selectedTicket.price && (
-                <div className="bg-rose-50 border border-rose-100 text-rose-800 p-2.5 rounded-lg text-xs font-semibold mt-2">
-                  Peringatan: Saldo Anda tidak mencukupi untuk melakukan transaksi ini. Silakan hubungi Admin untuk topup saldo.
+                <div className="bg-rose-50 border border-rose-100 text-rose-800 p-3.5 rounded-xl text-xs font-semibold mt-2 space-y-2.5">
+                  <p>Peringatan: Saldo Anda tidak mencukupi untuk melakukan transaksi ini.</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowTopUpModal(true)}
+                    className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <WalletIcon size={14} />
+                    <span>Top Up Saldo Sekarang</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -510,6 +549,70 @@ function CheckoutForm() {
         </div>
 
       </div>
+
+      {/* TOP UP MODAL DIALOG */}
+      {showTopUpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl max-w-sm w-full p-6 animate-scale-in">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <WalletIcon size={20} className="text-emerald-600" />
+                <span>Top Up Saldo (Simulasi)</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowTopUpModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                <CloseIcon size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleTopUpSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Nominal Top Up (Rupiah)
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1000"
+                  value={topUpAmount}
+                  onChange={(e) => setTopUpAmount(e.target.value)}
+                  placeholder="Masukkan nominal"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-sm text-slate-800 font-semibold"
+                />
+              </div>
+
+              {/* Quick Select Grid */}
+              <div className="grid grid-cols-2 gap-2">
+                {[50000, 100000, 200000, 500000].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setTopUpAmount(String(amt))}
+                    className={`py-2 px-3 border rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      topUpAmount === String(amt)
+                        ? "border-emerald-500 bg-emerald-50/50 text-emerald-700"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {formatRupiah(amt)}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-all shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer mt-2 text-sm"
+              >
+                <WalletIcon size={16} />
+                <span>Top Up Sekarang</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
