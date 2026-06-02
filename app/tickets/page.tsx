@@ -52,52 +52,6 @@ function TicketsSearchResult() {
   const [filterClass, setFilterClass] = useState(seatClass);
   const [sortBy, setSortBy] = useState<"harga-rendah" | "harga-tinggi" | "waktu-cepat">("harga-rendah");
 
-  const generateMockSchedules = (
-    type: string,
-    orig: string,
-    dest: string,
-    searchDate: string
-  ): ScheduleInfo[] => {
-    const isKereta = type === "kereta";
-    const dateVal = searchDate || new Date().toISOString().split("T")[0];
-    
-    const vehicles = isKereta
-      ? [
-          { name: "Argo Bromo Anggrek", code: "KA-001", dep: "08:00", arr: "14:30", prices: { ekonomi: 150000, eksekutif: 300000, vip: 450000 } },
-          { name: "Gajayana", code: "KA-042", dep: "13:30", arr: "20:45", prices: { ekonomi: 170000, eksekutif: 320000, vip: 500000 } },
-          { name: "Majapahit", code: "KA-251", dep: "18:30", arr: "01:15", prices: { ekonomi: 90000, eksekutif: 200000, vip: 350000 } }
-        ]
-      : [
-          { name: "Garuda Indonesia", code: "GA-204", dep: "07:15", arr: "08:45", prices: { ekonomi: 850000, eksekutif: 1600000, vip: 2800000 } },
-          { name: "Batik Air", code: "ID-620", dep: "11:30", arr: "13:00", prices: { ekonomi: 550000, eksekutif: 980000, vip: 1600000 } },
-          { name: "Citilink", code: "QG-412", dep: "16:45", arr: "18:15", prices: { ekonomi: 450000, eksekutif: 850000, vip: 0 } }
-        ];
-
-    return vehicles.map((v, index) => {
-      const originCode = orig.substring(0, 3).toUpperCase();
-      const destinationCode = dest.substring(0, 3).toUpperCase();
-      
-      return {
-        scheduleId: `mock-sch-${type}-${dateVal}-${index}`,
-        vehicleName: v.name,
-        vehicleCode: v.code,
-        departureTime: `${dateVal}T${v.dep}:00.000Z`,
-        arrivalTime: `${dateVal}T${v.arr}:00.000Z`,
-        route: {
-          origin: orig,
-          destination: dest,
-          originCode,
-          destinationCode,
-        },
-        availableSeats: {
-          ekonomi: v.prices.ekonomi > 0 ? { count: 40 - index * 5, minPrice: v.prices.ekonomi } : undefined,
-          eksekutif: v.prices.eksekutif > 0 ? { count: 15 - index * 2, minPrice: v.prices.eksekutif } : undefined,
-          vip: v.prices.vip > 0 ? { count: 8 - index, minPrice: v.prices.vip } : undefined,
-        }
-      };
-    });
-  };
-
   useEffect(() => {
     const fetchSchedules = async () => {
       setLoading(true);
@@ -116,12 +70,11 @@ function TicketsSearchResult() {
         if (data && data.length > 0) {
           setSchedules(data);
         } else {
-          // If no results on this date/route in backend, generate realistic mocks to prevent "Empty State"
-          setSchedules(generateMockSchedules(transportType, origin, destination, date));
+          setSchedules([]);
         }
       } catch (err: any) {
-        // Even if API fails (network/401/etc), fallback to mock schedules for visual robustness
-        setSchedules(generateMockSchedules(transportType, origin, destination, date));
+        setSchedules([]);
+        showToast(err.message || "Gagal memuat jadwal perjalanan.", "error");
       } finally {
         setLoading(false);
       }

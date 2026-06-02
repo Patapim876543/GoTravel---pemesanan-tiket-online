@@ -66,50 +66,108 @@ export default function BoardingPage() {
     }
   }, [user]);
 
-  const loadOrders = (keepSelectedId?: string) => {
+  const loadOrders = async (keepSelectedId?: string) => {
     if (typeof window !== "undefined") {
+      let apiList: any[] = [];
+      try {
+        const res = await apiRequest<any>("/api/admin/orders");
+        const ordersArray = Array.isArray(res) ? res : res.data || [];
+        apiList = ordersArray;
+      } catch (err: any) {
+        console.warn("Failed to fetch real orders from API:", err);
+      }
+
       const stored = localStorage.getItem("mock_orders");
+      let mockList: any[] = [];
       if (stored) {
         try {
-          const list = JSON.parse(stored);
-          const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
-          
-          // Filter to show active orders that are not refunded, cancelled, or already boarded
-          let activeOrders = list.filter(
-            (o: any) => o.status !== "refunded" && o.status !== "cancelled" && storedBoarding[o.id] !== "Boarded"
-          );
-
-          // Role-based ticket type filtering for officers
-          if (user?.role === "petugas_kereta") {
-            activeOrders = activeOrders.filter(
-              (o: any) => o.ticket.schedule.route.transportType === "kereta"
-            );
-          } else if (user?.role === "petugas_pesawat") {
-            activeOrders = activeOrders.filter(
-              (o: any) => o.ticket.schedule.route.transportType === "pesawat"
-            );
-          }
-
-          setOrders(activeOrders);
-          
-          if (keepSelectedId) {
-            const matched = list.find((o: any) => o.id === keepSelectedId);
-            if (matched) {
-              setSelectedOrder(matched);
-              setBoardingStatus(storedBoarding[matched.id] || "Booked");
-            }
-          } else {
-            if (activeOrders.length > 0) {
-              setSelectedOrder(activeOrders[0]);
-              setBoardingStatus(storedBoarding[activeOrders[0].id] || "Booked");
-            } else {
-              setSelectedOrder(null);
-            }
-          }
+          mockList = JSON.parse(stored);
         } catch (e) {
-          console.error("Failed to parse orders", e);
+          console.error("Failed to parse mock orders", e);
         }
       }
+
+      const list = [...mockList, ...apiList];
+      const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
+      
+      // Filter to show active orders that are not refunded, cancelled, or already boarded
+      let activeOrders = list.filter((o: any) => {
+        const status = o.status;
+        const bStatus = o.boardingStatus || o.boarding_status || storedBoarding[o.id] || "Booked";
+        return status !== "refunded" && status !== "cancelled" && bStatus !== "Boarded";
+      });
+
+      // Role-based ticket type filtering for officers
+      if (user?.role === "petugas_kereta") {
+        activeOrders = activeOrders.filter(
+          (o: any) => o.ticket?.schedule?.route?.transportType === "kereta"
+        );
+      } else if (user?.role === "petugas_pesawat") {
+        activeOrders = activeOrders.filter(
+          (o: any) => o.ticket?.schedule?.route?.transportType === "pesawat"
+        );
+      }
+
+      setOrders(activeOrders);
+      
+      if (keepSelectedId) {
+        const matched = list.find((o: any) => o.id === keepSelectedId);
+        if (matched) {
+          setSelectedOrder(matched);
+          setBoardingStatus(matched.boardingStatus || matched.boarding_status || storedBoarding[matched.id] || "Booked");
+        }
+      } else {
+        if (activeOrders.length > 0) {
+          setSelectedOrder(activeOrders[0]);
+          setBoardingStatus(activeOrders[0].boardingStatus || activeOrders[0].boarding_status || storedBoarding[activeOrders[0].id] || "Booked");
+        } else {
+          setSelectedOrder(null);
+        }
+      }
+    }
+  };
+
+  const handleGenerateDemoTicket = (type: "kereta" | "pesawat") => {
+    if (typeof window !== "undefined") {
+      const isKereta = type === "kereta";
+      const randomId = `mock-order-${Math.random().toString(36).substring(2, 9)}`;
+      const randomSeat = `${Math.floor(Math.random() * 8) + 1}${["A", "B", "C", "D"][Math.floor(Math.random() * 4)]}`;
+      
+      const newOrder = {
+        id: randomId,
+        passengerName: `Demo Passenger (${isKereta ? "Train" : "Plane"})`,
+        passengerIdNumber: `12345678${Math.floor(100000 + Math.random() * 900000)}`,
+        passengerPhone: `081234${Math.floor(100000 + Math.random() * 900000)}`,
+        status: "paid",
+        createdAt: new Date().toISOString(),
+        ticket: {
+          id: `mock-ticket-${randomId}`,
+          seatNumber: randomSeat,
+          seatClass: isKereta ? "ekonomi" : "vip",
+          price: isKereta ? 150000 : 1720000,
+          schedule: {
+            vehicleName: isKereta ? "Argo Bromo Anggrek" : "Garuda Indonesia",
+            vehicleCode: isKereta ? "KA-001" : "GA-204",
+            departureTime: new Date(Date.now() + 2 * 3600000).toISOString(),
+            arrivalTime: new Date(Date.now() + 5 * 3600000).toISOString(),
+            route: {
+              origin: "JAKARTA",
+              destination: "SURABAYA",
+              originCode: "JKT",
+              destinationCode: "SUB",
+              transportType: type
+            }
+          }
+        }
+      };
+
+      const stored = localStorage.getItem("mock_orders");
+      const list = stored ? JSON.parse(stored) : [];
+      list.unshift(newOrder);
+      localStorage.setItem("mock_orders", JSON.stringify(list));
+      
+      showToast(`Tiket Demo ${isKereta ? "Kereta" : "Pesawat"} berhasil dibuat.`, "success");
+      loadOrders();
     }
   };
 
@@ -322,14 +380,59 @@ export default function BoardingPage() {
 
               {activeTab === "select" ? (
                 <div className="space-y-4">
+                  {orders.length > 0 && (
+                    <div className="flex gap-2 justify-end mb-2">
+                      {(!user || user.role === "admin" || user.role === "petugas_kereta") && (
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateDemoTicket("kereta")}
+                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer"
+                        >
+                          ➕ Demo Kereta
+                        </button>
+                      )}
+                      {(!user || user.role === "admin" || user.role === "petugas_pesawat") && (
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateDemoTicket("pesawat")}
+                          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer"
+                        >
+                          ➕ Demo Pesawat
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {orders.length === 0 ? (
-                    <div className="text-center py-8 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-                      <p className="text-slate-400 text-sm font-medium">
-                        Tidak ada tiket aktif yang siap untuk check-in.
-                      </p>
-                      <p className="text-slate-400 text-xs mt-2 font-medium">
-                        Silakan lakukan pemesanan tiket terlebih dahulu melalui panel penumpang agar tiket muncul di sini.
-                      </p>
+                    <div className="text-center py-8 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-4">
+                      <div>
+                        <p className="text-slate-400 text-sm font-medium">
+                          Tidak ada tiket aktif yang siap untuk check-in.
+                        </p>
+                        <p className="text-slate-400 text-xs mt-2 font-medium">
+                          Silakan lakukan pemesanan tiket terlebih dahulu melalui panel penumpang agar tiket muncul di sini, atau buat tiket demo instan di bawah ini.
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        {(!user || user.role === "admin" || user.role === "petugas_kereta") && (
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateDemoTicket("kereta")}
+                            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                          >
+                            ➕ Generate Tiket Demo Kereta
+                          </button>
+                        )}
+                        {(!user || user.role === "admin" || user.role === "petugas_pesawat") && (
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateDemoTicket("pesawat")}
+                            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                          >
+                            ➕ Generate Tiket Demo Pesawat
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="max-h-64 overflow-y-auto pr-1 space-y-2">

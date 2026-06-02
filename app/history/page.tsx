@@ -87,50 +87,16 @@ export default function HistoryPage() {
       // API call GET /api/orders/my
       const data = await apiRequest<OrderItem[]>("/api/orders/my");
       
-      // Load local mock orders if any (to make custom date bookings show up)
-      let mockList: OrderItem[] = [];
-      let localStatuses: any = {};
       let hiddenIds: string[] = [];
       if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("mock_orders");
-        if (stored) {
-          mockList = JSON.parse(stored);
-        }
-        localStatuses = JSON.parse(localStorage.getItem("local_refund_statuses") || "{}");
         hiddenIds = JSON.parse(localStorage.getItem("hidden_orders") || "[]");
       }
       
-      const combined = [...mockList, ...(data || [])]
-        .filter((o) => !hiddenIds.includes(o.id))
-        .map((ord) => {
-          if (localStatuses[ord.id]) {
-            return { ...ord, status: localStatuses[ord.id].status };
-          }
-          return ord;
-        });
-      setOrders(combined);
+      const filtered = (data || []).filter((o) => !hiddenIds.includes(o.id));
+      setOrders(filtered);
     } catch (err: any) {
-      // Fallback to local mock orders if API request fails
-      let mockList: OrderItem[] = [];
-      let localStatuses: any = {};
-      let hiddenIds: string[] = [];
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("mock_orders");
-        if (stored) {
-          mockList = JSON.parse(stored);
-        }
-        localStatuses = JSON.parse(localStorage.getItem("local_refund_statuses") || "{}");
-        hiddenIds = JSON.parse(localStorage.getItem("hidden_orders") || "[]");
-      }
-      const combined = mockList
-        .filter((o) => !hiddenIds.includes(o.id))
-        .map((ord) => {
-          if (localStatuses[ord.id]) {
-            return { ...ord, status: localStatuses[ord.id].status };
-          }
-          return ord;
-        });
-      setOrders(combined);
+      setOrders([]);
+      showToast(err.message || "Gagal memuat riwayat pemesanan.", "error");
     } finally {
       setLoading(false);
     }
@@ -265,46 +231,11 @@ export default function HistoryPage() {
 
     setRefundSubmitting(true);
     try {
-      const isMockRefund = activeRefundOrder.id.startsWith("mock-order-");
-
-      if (isMockRefund) {
-        // Save refund details to local_refund_statuses so the admin dashboard can see it,
-        // and so the user's history page displays it as "pending_refund".
-        const localRefundStatuses = JSON.parse(localStorage.getItem("local_refund_statuses") || "{}");
-        localRefundStatuses[activeRefundOrder.id] = {
-          status: "pending_refund",
-          price: activeRefundOrder.ticket.price,
-          passengerName: activeRefundOrder.passengerName,
-          vehicleName: activeRefundOrder.ticket.schedule.vehicleName,
-          origin: activeRefundOrder.ticket.schedule.route.origin,
-          destination: activeRefundOrder.ticket.schedule.route.destination,
-          vehicleCode: activeRefundOrder.ticket.schedule.vehicleCode,
-          seatNumber: activeRefundOrder.ticket.seatNumber,
-          refundReason: refundReason,
-          transportType: activeRefundOrder.ticket.schedule.route.transportType,
-          timestamp: new Date().toISOString()
-        };
-        localStorage.setItem("local_refund_statuses", JSON.stringify(localRefundStatuses));
-
-        // Also update the status inside mock_orders for consistency
-        const stored = localStorage.getItem("mock_orders");
-        if (stored) {
-          const list: OrderItem[] = JSON.parse(stored);
-          const updated = list.map((ord) => {
-            if (ord.id === activeRefundOrder.id) {
-              return { ...ord, status: "pending_refund" };
-            }
-            return ord;
-          });
-          localStorage.setItem("mock_orders", JSON.stringify(updated));
-        }
-      } else {
-        // Call backend API to request refund
-        await apiRequest(`/api/orders/${activeRefundOrder.id}/request-refund`, {
-          method: "POST",
-          body: { refund_reason: refundReason }
-        });
-      }
+      // Call backend API to request refund
+      await apiRequest(`/api/orders/${activeRefundOrder.id}/request-refund`, {
+        method: "POST",
+        body: { refund_reason: refundReason }
+      });
 
       showToast("Refund tiket berhasil diajukan, menunggu konfirmasi Admin.", "success");
       

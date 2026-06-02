@@ -114,113 +114,51 @@ function CheckoutForm() {
     const loadBookingData = async () => {
       setLoading(true);
       try {
-        const isMock = scheduleId.startsWith("mock-");
-
-        if (isMock) {
-          // Parse info from mock ID: mock-sch-${transportType}-${dateVal}-${index}
-          const parts = scheduleId.split("-");
-          const type = parts[2] || "kereta";
-          const dateVal = `${parts[3]}-${parts[4]}-${parts[5]}`;
-          const index = Number(parts[6]) || 0;
-
-          const isKereta = type === "kereta";
-          const mockVehicles = isKereta
-            ? [
-                { name: "Argo Bromo Anggrek", code: "KA-001", price: selectedClass === "ekonomi" ? 150000 : selectedClass === "eksekutif" ? 300000 : 450000 },
-                { name: "Gajayana", code: "KA-042", price: selectedClass === "ekonomi" ? 170000 : selectedClass === "eksekutif" ? 320000 : 500000 },
-                { name: "Majapahit", code: "KA-251", price: selectedClass === "ekonomi" ? 90000 : selectedClass === "eksekutif" ? 200000 : 350000 }
-              ]
-            : [
-                { name: "Garuda Indonesia", code: "GA-204", price: selectedClass === "ekonomi" ? 850000 : selectedClass === "eksekutif" ? 1600000 : 2800000 },
-                { name: "Batik Air", code: "ID-620", price: selectedClass === "ekonomi" ? 550000 : selectedClass === "eksekutif" ? 980000 : 1600000 },
-                { name: "Citilink", code: "QG-412", price: selectedClass === "ekonomi" ? 450000 : selectedClass === "eksekutif" ? 850000 : 1000000 }
-              ];
-          
-          const vehicle = mockVehicles[index] || mockVehicles[0];
-
-          setSchedule({
-            id: scheduleId,
-            vehicleName: vehicle.name,
-            vehicleCode: vehicle.code,
-            departureTime: `${dateVal}T08:00:00.000Z`,
-            arrivalTime: `${dateVal}T14:00:00.000Z`,
-            route: {
-              origin: searchParams.get("origin") || "Kota Asal",
-              destination: searchParams.get("destination") || "Kota Tujuan",
-              originCode: (searchParams.get("origin") || "ASL").substring(0, 3).toUpperCase(),
-              destinationCode: (searchParams.get("destination") || "TJN").substring(0, 3).toUpperCase(),
-            }
-          });
-
-          // Generate mock seats grid (e.g. 1A, 1B, 2A, 2B... up to 32 seats)
-          const mockSeats: SeatTicket[] = [];
-          const rows = 8;
-          const cols = ["A", "B", "C", "D"];
-          const seatClassVal = (selectedClass || "ekonomi") as any;
-          const priceVal = vehicle.price;
-
-          for (let r = 1; r <= rows; r++) {
-            for (let c = 0; c < cols.length; c++) {
-              const seatNum = `${r}${cols[c]}`;
-              // Make some seats randomly booked to look realistic
-              const isBooked = (r * (c + 1)) % 3 === 0;
-              mockSeats.push({
-                id: `mock-ticket-${scheduleId}-${seatNum}`,
-                seatNumber: seatNum,
-                seatClass: seatClassVal,
-                price: priceVal,
-                status: isBooked ? "dipesan" : "tersedia"
-              });
-            }
-          }
-          setSeats(mockSeats);
-        } else {
-          // 1. Fetch schedule detail (using the schedules list query or a specific schedule API)
-          const schedulesList = await apiRequest<any[]>("/api/schedules");
-          const matchedSch = schedulesList.find((s) => s.id === scheduleId);
-          if (matchedSch) {
-            setSchedule(matchedSch);
-          }
-
-          // 2. Fetch seats map from API /api/tickets/seats/{scheduleId}
-          const seatData = await apiRequest<any>(`/api/tickets/seats/${scheduleId}`);
-          
-          let rawSeats: any[] = [];
-          if (Array.isArray(seatData)) {
-            rawSeats = seatData;
-          } else if (seatData && typeof seatData === "object") {
-            const dataObj = seatData.seats || seatData.tickets || seatData.data || seatData;
-            if (Array.isArray(dataObj)) {
-              rawSeats = dataObj;
-            } else if (dataObj && typeof dataObj === "object") {
-              const classKey = selectedClass ? selectedClass.toLowerCase() : "";
-              if (classKey && Array.isArray(dataObj[classKey])) {
-                rawSeats = dataObj[classKey];
-              } else {
-                rawSeats = Object.keys(dataObj).reduce<any[]>((acc, key) => {
-                  if (Array.isArray(dataObj[key])) {
-                    return acc.concat(dataObj[key]);
-                  }
-                  return acc;
-                }, []);
-              }
-            }
-          }
-
-          const seatList: SeatTicket[] = rawSeats;
-          
-          // Filter seats by the class selected in the search params
-          const classFilteredSeats = selectedClass
-            ? seatList.filter((s) => s && s.seatClass && s.seatClass.toLowerCase() === selectedClass.toLowerCase())
-            : seatList;
-
-          // Sort seats alphabetically/numerically (e.g. 1A, 1B, 2A, 2B)
-          const sorted = [...classFilteredSeats].sort((a, b) =>
-            (a.seatNumber || "").localeCompare(b.seatNumber || "", undefined, { numeric: true, sensitivity: "base" })
-          );
-
-          setSeats(sorted);
+        // 1. Fetch schedule detail (using the schedules list query or a specific schedule API)
+        const schedulesList = await apiRequest<any[]>("/api/schedules");
+        const matchedSch = schedulesList.find((s) => s.id === scheduleId);
+        if (matchedSch) {
+          setSchedule(matchedSch);
         }
+
+        // 2. Fetch seats map from API /api/tickets/seats/{scheduleId}
+        const seatData = await apiRequest<any>(`/api/tickets/seats/${scheduleId}`);
+        
+        let rawSeats: any[] = [];
+        if (Array.isArray(seatData)) {
+          rawSeats = seatData;
+        } else if (seatData && typeof seatData === "object") {
+          const dataObj = seatData.seats || seatData.tickets || seatData.data || seatData;
+          if (Array.isArray(dataObj)) {
+            rawSeats = dataObj;
+          } else if (dataObj && typeof dataObj === "object") {
+            const classKey = selectedClass ? selectedClass.toLowerCase() : "";
+            if (classKey && Array.isArray(dataObj[classKey])) {
+              rawSeats = dataObj[classKey];
+            } else {
+              rawSeats = Object.keys(dataObj).reduce<any[]>((acc, key) => {
+                if (Array.isArray(dataObj[key])) {
+                  return acc.concat(dataObj[key]);
+                }
+                return acc;
+              }, []);
+            }
+          }
+        }
+
+        const seatList: SeatTicket[] = rawSeats;
+        
+        // Filter seats by the class selected in the search params
+        const classFilteredSeats = selectedClass
+          ? seatList.filter((s) => s && s.seatClass && s.seatClass.toLowerCase() === selectedClass.toLowerCase())
+          : seatList;
+
+        // Sort seats alphabetically/numerically (e.g. 1A, 1B, 2A, 2B)
+        const sorted = [...classFilteredSeats].sort((a, b) =>
+          (a.seatNumber || "").localeCompare(b.seatNumber || "", undefined, { numeric: true, sensitivity: "base" })
+        );
+
+        setSeats(sorted);
       } catch (err: any) {
         showToast(err.message || "Gagal memuat peta kursi.", "error");
       } finally {
@@ -273,68 +211,24 @@ function CheckoutForm() {
 
     setSubmitting(true);
     try {
-      const isMockTicket = selectedTicket.id.startsWith("mock-ticket-");
-
-      if (isMockTicket) {
-        // Create mock order data
-        const mockOrder = {
-          id: `mock-order-${Math.random().toString(36).substring(2, 9)}`,
+      // Create real order via API POST /api/orders
+      await apiRequest("/api/orders", {
+        method: "POST",
+        body: {
+          ticketId: selectedTicket.id,
           passengerName,
           passengerIdNumber,
           passengerPhone,
-          status: "paid",
           notes: notes || undefined,
-          createdAt: new Date().toISOString(),
-          ticket: {
-            id: selectedTicket.id,
-            seatNumber: selectedTicket.seatNumber,
-            seatClass: selectedTicket.seatClass,
-            price: selectedTicket.price,
-            schedule: {
-              vehicleName: schedule?.vehicleName || "Kendaraan",
-              vehicleCode: schedule?.vehicleCode || "TR-001",
-              departureTime: schedule?.departureTime || new Date().toISOString(),
-              arrivalTime: schedule?.arrivalTime || new Date().toISOString(),
-              route: {
-                origin: schedule?.route?.origin || "Kota Asal",
-                destination: schedule?.route?.destination || "Kota Tujuan",
-                originCode: schedule?.route?.originCode || "ASL",
-                destinationCode: schedule?.route?.destinationCode || "TJN",
-                transportType: scheduleId.includes("kereta") ? "kereta" : "pesawat"
-              }
-            }
-          }
-        };
+          ...(user && user.role !== "user" ? { buyerUserId } : {})
+        },
+      });
 
-        // Save order to localStorage so it persists in history page
-        const existing = localStorage.getItem("mock_orders");
-        const list = existing ? JSON.parse(existing) : [];
-        list.unshift(mockOrder);
-        localStorage.setItem("mock_orders", JSON.stringify(list));
-
-        showToast("Pemesanan tiket berhasil diproses!", "success");
-        await fetchBalance();
-        router.push("/history");
-      } else {
-        // Create real order via API POST /api/orders
-        await apiRequest("/api/orders", {
-          method: "POST",
-          body: {
-            ticketId: selectedTicket.id,
-            passengerName,
-            passengerIdNumber,
-            passengerPhone,
-            notes: notes || undefined,
-            ...(user && user.role !== "user" ? { buyerUserId } : {})
-          },
-        });
-
-        showToast("Pemesanan tiket berhasil diproses!", "success");
-        // Update balance globally
-        await fetchBalance();
-        // Redirect to transaction history page
-        router.push("/history");
-      }
+      showToast("Pemesanan tiket berhasil diproses!", "success");
+      // Update balance globally
+      await fetchBalance();
+      // Redirect to transaction history page
+      router.push("/history");
     } catch (err: any) {
       showToast(err.message || "Gagal melakukan pemesanan tiket.", "error");
     } finally {
