@@ -28,6 +28,9 @@ interface ScheduleInfo {
   departureTime: string;
   arrivalTime: string;
   route: RouteInfo;
+  delayMinutes?: string;
+  gateNumber?: string;
+  flightStatus?: string;
   availableSeats: {
     ekonomi?: { count: number; minPrice: number | null };
     vip?: { count: number; minPrice: number | null };
@@ -273,8 +276,8 @@ function TicketsSearchResult() {
                 ].filter((c) => c.price !== undefined && c.price !== null && c.price > 0 && c.count !== undefined && c.count > 0);
 
                 const schKey = sch.scheduleId || (sch as any).id;
-                const delay = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("local_schedule_delays") || "{}")[schKey] || "" : "";
-                const gateInfo = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("local_schedule_gates") || "{}")[schKey] || null : null;
+                const delay = (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("local_schedule_delays") || "{}")[schKey] : null) || sch.delayMinutes || (sch as any).delay_minutes || "Tepat Waktu";
+                const gateInfo = (typeof window !== "undefined" ? JSON.parse(localStorage.getItem("local_schedule_gates") || "{}")[schKey] : null) || { gate: sch.gateNumber || (sch as any).gate_number || null, status: sch.flightStatus || (sch as any).flight_status || null };
 
                 return (
                   <div

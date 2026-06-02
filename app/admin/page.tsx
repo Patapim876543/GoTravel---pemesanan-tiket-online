@@ -174,56 +174,80 @@ export default function AdminPage() {
     }
   };
 
-  const getScheduleDelay = (schId: string) => {
-    if (typeof window === "undefined") return "";
+  const getScheduleDelay = (sch: any) => {
+    if (typeof window === "undefined" || !sch) return "";
     const delays = JSON.parse(localStorage.getItem("local_schedule_delays") || "{}");
-    return delays[schId] || "";
+    return delays[sch.id] || sch.delayMinutes || sch.delay_minutes || "Tepat Waktu";
   };
 
-  const getScheduleGate = (schId: string) => {
-    if (typeof window === "undefined") return { gate: "", status: "Scheduled" };
+  const getScheduleGate = (sch: any) => {
+    if (typeof window === "undefined" || !sch) return { gate: "Gate 1A", status: "Scheduled" };
     const gates = JSON.parse(localStorage.getItem("local_schedule_gates") || "{}");
-    return gates[schId] || { gate: "", status: "Scheduled" };
+    return gates[sch.id] || { gate: sch.gateNumber || sch.gate_number || "Gate 1A", status: sch.flightStatus || sch.flight_status || "Scheduled" };
   };
 
   const handleOpenDelayModal = (sch: any) => {
     setSelectedSchedule(sch);
     const delays = JSON.parse(localStorage.getItem("local_schedule_delays") || "{}");
-    setDelayMinutes(delays[sch.id] || "Tepat Waktu");
+    setDelayMinutes(delays[sch.id] || sch.delayMinutes || sch.delay_minutes || "Tepat Waktu");
     setShowDelayModal(true);
   };
 
-  const handleSaveDelay = (e: React.FormEvent) => {
+  const handleSaveDelay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSchedule) return;
-    const delays = JSON.parse(localStorage.getItem("local_schedule_delays") || "{}");
-    delays[selectedSchedule.id] = delayMinutes;
-    localStorage.setItem("local_schedule_delays", JSON.stringify(delays));
-    showToast(`Status keterlambatan jadwal ${selectedSchedule.vehicleCode} disimpan: ${delayMinutes}`, "success");
-    setShowDelayModal(false);
-    setSelectedSchedule(null);
-    loadDashboardData();
+    try {
+      if (!selectedSchedule.id.startsWith("mock-")) {
+        await apiRequest(`/api/schedules/${selectedSchedule.id}/delay-gate`, {
+          method: "PATCH",
+          body: { delayMinutes }
+        });
+      }
+
+      const delays = JSON.parse(localStorage.getItem("local_schedule_delays") || "{}");
+      delays[selectedSchedule.id] = delayMinutes;
+      localStorage.setItem("local_schedule_delays", JSON.stringify(delays));
+
+      showToast(`Status keterlambatan jadwal ${selectedSchedule.vehicleCode} disimpan: ${delayMinutes}`, "success");
+      setShowDelayModal(false);
+      setSelectedSchedule(null);
+      loadDashboardData();
+    } catch (err: any) {
+      showToast(err.message || "Gagal menyimpan status keterlambatan.", "error");
+    }
   };
 
   const handleOpenGateModal = (sch: any) => {
     setSelectedSchedule(sch);
     const gates = JSON.parse(localStorage.getItem("local_schedule_gates") || "{}");
-    const gateInfo = gates[sch.id] || { gate: "Gate 1A", status: "Scheduled" };
+    const gateInfo = gates[sch.id] || { gate: sch.gateNumber || sch.gate_number || "Gate 1A", status: sch.flightStatus || sch.flight_status || "Scheduled" };
     setGateNumber(gateInfo.gate);
     setFlightStatus(gateInfo.status);
     setShowGateModal(true);
   };
 
-  const handleSaveGate = (e: React.FormEvent) => {
+  const handleSaveGate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSchedule) return;
-    const gates = JSON.parse(localStorage.getItem("local_schedule_gates") || "{}");
-    gates[selectedSchedule.id] = { gate: gateNumber, status: flightStatus };
-    localStorage.setItem("local_schedule_gates", JSON.stringify(gates));
-    showToast(`Gate & status penerbangan ${selectedSchedule.vehicleCode} berhasil diupdate!`, "success");
-    setShowGateModal(false);
-    setSelectedSchedule(null);
-    loadDashboardData();
+    try {
+      if (!selectedSchedule.id.startsWith("mock-")) {
+        await apiRequest(`/api/schedules/${selectedSchedule.id}/delay-gate`, {
+          method: "PATCH",
+          body: { gateNumber, flightStatus }
+        });
+      }
+
+      const gates = JSON.parse(localStorage.getItem("local_schedule_gates") || "{}");
+      gates[selectedSchedule.id] = { gate: gateNumber, status: flightStatus };
+      localStorage.setItem("local_schedule_gates", JSON.stringify(gates));
+
+      showToast(`Gate & status penerbangan ${selectedSchedule.vehicleCode} berhasil diupdate!`, "success");
+      setShowGateModal(false);
+      setSelectedSchedule(null);
+      loadDashboardData();
+    } catch (err: any) {
+      showToast(err.message || "Gagal memperbarui gate & status.", "error");
+    }
   };
 
   const handleToggleBoarding = async (passengerId: string) => {
@@ -1652,8 +1676,8 @@ export default function AdminPage() {
                         <tbody className="divide-y divide-slate-100">
                           {filteredSchedules.map((sch) => {
                              const isKereta = sch.route?.transportType === "kereta";
-                             const delayInfo = getScheduleDelay(sch.id);
-                             const gateInfo = getScheduleGate(sch.id);
+                             const delayInfo = getScheduleDelay(sch);
+                             const gateInfo = getScheduleGate(sch);
 
                              return (
                                <tr key={sch.id} className="hover:bg-slate-50/50">

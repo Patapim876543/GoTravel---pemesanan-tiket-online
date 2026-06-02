@@ -72,7 +72,10 @@ export default function HistoryPage() {
     : "";
 
   const gateInfo = activeTicket && typeof window !== "undefined" && schId
-    ? JSON.parse(localStorage.getItem("local_schedule_gates") || "{}")[schId] || null
+    ? JSON.parse(localStorage.getItem("local_schedule_gates") || "{}")[schId] || {
+        gate: (activeTicket.ticket?.schedule as any)?.gateNumber || (activeTicket.ticket?.schedule as any)?.gate_number || null,
+        status: (activeTicket.ticket?.schedule as any)?.flightStatus || (activeTicket.ticket?.schedule as any)?.flight_status || null
+      }
     : null;
 
   // Wallet & Tab states
