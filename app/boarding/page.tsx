@@ -277,7 +277,8 @@ export default function BoardingPage() {
         if (!orderToScan.id.startsWith("mock-order-")) {
           try {
             await apiRequest(`/api/tickets/${orderToScan.id}/boarding`, {
-              method: "PATCH"
+              method: "PATCH",
+              body: { boardingStatus: "Boarded" }
             });
           } catch (apiErr: any) {
             console.warn("Backend API boarding failed, using local fallback:", apiErr);

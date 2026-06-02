@@ -162,8 +162,8 @@ export default function AdminPage() {
         const list = Array.isArray(data) ? data : data.passengers || data.data || [];
         passengers = list.map((p: any) => ({
           ...p,
-          boardingStatus: storedBoarding[p.id] || "Booked",
-          baggageWeight: storedBaggage[p.id] || 0
+          boardingStatus: p.boardingStatus || storedBoarding[p.id] || "Booked",
+          baggageWeight: p.baggageWeight !== undefined && p.baggageWeight !== null ? p.baggageWeight : (storedBaggage[p.id] || 0)
         }));
       }
       setManifestPassengers(passengers);
@@ -226,12 +226,23 @@ export default function AdminPage() {
     loadDashboardData();
   };
 
-  const handleToggleBoarding = (passengerId: string) => {
+  const handleToggleBoarding = async (passengerId: string) => {
     const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
     const currentStatus = storedBoarding[passengerId] || "Booked";
     const newStatus = currentStatus === "Boarded" ? "Booked" : "Boarded";
     storedBoarding[passengerId] = newStatus;
     localStorage.setItem("local_boarding_status", JSON.stringify(storedBoarding));
+
+    if (!passengerId.startsWith("mock-order-")) {
+      try {
+        await apiRequest(`/api/tickets/${passengerId}/boarding`, {
+          method: "PATCH",
+          body: { boardingStatus: newStatus }
+        });
+      } catch (err: any) {
+        console.error("Gagal update boarding ke backend:", err);
+      }
+    }
 
     setManifestPassengers((prev) =>
       prev.map((p) => (p.id === passengerId ? { ...p, boardingStatus: newStatus } : p))
@@ -239,10 +250,21 @@ export default function AdminPage() {
     showToast(`Status boarding penumpang berhasil diubah menjadi: ${newStatus === "Boarded" ? "SUDAH BOARDING (Boarded)" : "BELUM BOARDING"}`, "success");
   };
 
-  const handleUpdateBaggage = (passengerId: string, weight: number) => {
+  const handleUpdateBaggage = async (passengerId: string, weight: number) => {
     const storedBaggage = JSON.parse(localStorage.getItem("local_baggage_weight") || "{}");
     storedBaggage[passengerId] = weight;
     localStorage.setItem("local_baggage_weight", JSON.stringify(storedBaggage));
+
+    if (!passengerId.startsWith("mock-order-")) {
+      try {
+        await apiRequest(`/api/tickets/${passengerId}/baggage`, {
+          method: "PATCH",
+          body: { baggageWeight: weight }
+        });
+      } catch (err: any) {
+        console.error("Gagal update bagasi ke backend:", err);
+      }
+    }
 
     setManifestPassengers((prev) =>
       prev.map((p) => (p.id === passengerId ? { ...p, baggageWeight: weight } : p))
