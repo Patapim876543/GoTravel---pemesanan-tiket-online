@@ -124,25 +124,29 @@ function CheckoutForm() {
         // 2. Fetch seats map from API /api/tickets/seats/{scheduleId}
         const seatData = await apiRequest<any>(`/api/tickets/seats/${scheduleId}`);
         
+        let seatsObj: any = null;
+        if (seatData) {
+          if (seatData.data && typeof seatData.data === "object") {
+            seatsObj = seatData.data.seats || seatData.data.tickets || seatData.data;
+          } else {
+            seatsObj = seatData.seats || seatData.tickets || seatData;
+          }
+        }
+
         let rawSeats: any[] = [];
-        if (Array.isArray(seatData)) {
-          rawSeats = seatData;
-        } else if (seatData && typeof seatData === "object") {
-          const dataObj = seatData.seats || seatData.tickets || seatData.data || seatData;
-          if (Array.isArray(dataObj)) {
-            rawSeats = dataObj;
-          } else if (dataObj && typeof dataObj === "object") {
-            const classKey = selectedClass ? selectedClass.toLowerCase() : "";
-            if (classKey && Array.isArray(dataObj[classKey])) {
-              rawSeats = dataObj[classKey];
-            } else {
-              rawSeats = Object.keys(dataObj).reduce<any[]>((acc, key) => {
-                if (Array.isArray(dataObj[key])) {
-                  return acc.concat(dataObj[key]);
-                }
-                return acc;
-              }, []);
-            }
+        if (Array.isArray(seatsObj)) {
+          rawSeats = seatsObj;
+        } else if (seatsObj && typeof seatsObj === "object") {
+          const classKey = selectedClass ? selectedClass.toLowerCase() : "";
+          if (classKey && Array.isArray(seatsObj[classKey])) {
+            rawSeats = seatsObj[classKey];
+          } else {
+            rawSeats = Object.keys(seatsObj).reduce<any[]>((acc, key) => {
+              if (Array.isArray(seatsObj[key])) {
+                return acc.concat(seatsObj[key]);
+              }
+              return acc;
+            }, []);
           }
         }
 
