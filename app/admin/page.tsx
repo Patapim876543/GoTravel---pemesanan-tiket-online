@@ -2476,7 +2476,7 @@ export default function AdminPage() {
         const displayedPassengers = manifestPassengers.filter((p) => {
           if (!isKereta) return true;
           const seatNum = p.seatNumber || "";
-          const match = seatNum.match(/^(\d+)/);
+          const match = seatNum.match(/(\d+)/);
           if (!match) return false;
           const row = parseInt(match[1]);
           return row >= rowsStart && row <= rowsEnd;
@@ -2690,7 +2690,7 @@ export default function AdminPage() {
                               filteredDisplayedPassengers
                                 .sort((a, b) => {
                                   const parseSeat = (s: string) => {
-                                    const match = s.match(/^(\d+)([A-D])$/i);
+                                    const match = s.match(/^[EXV]?(\d+)([A-F])$/i);
                                     return match ? { num: parseInt(match[1]), letter: match[2].toUpperCase() } : { num: 999, letter: s };
                                   };
                                   const seatA = parseSeat(a.seatNumber || "");
@@ -3002,7 +3002,7 @@ export default function AdminPage() {
               {manifestPassengers
                 .sort((a, b) => {
                   const parseSeat = (s: string) => {
-                    const match = s.match(/^(\d+)([A-D])$/i);
+                    const match = s.match(/^[EXV]?(\d+)([A-F])$/i);
                     return match ? { num: parseInt(match[1]), letter: match[2].toUpperCase() } : { num: 999, letter: s };
                   };
                   const seatA = parseSeat(a.seatNumber || "");
