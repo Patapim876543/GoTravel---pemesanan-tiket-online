@@ -1008,7 +1008,7 @@ export default function AdminPage() {
         return oDate.toDateString() === d.toDateString() && o.status === "paid";
       });
       
-      const revenue = matched.reduce((acc, curr) => acc + (curr.ticket?.price || curr.price || 0), 0);
+      const revenue = matched.reduce((acc, curr) => acc + Number(curr.ticket?.price || curr.price || 0), 0);
       data.push({
         label: dateStr,
         revenue,
@@ -1045,15 +1045,15 @@ export default function AdminPage() {
   // Donut Chart Calculations (Train vs Plane)
   const trainOrders = filteredOrders.filter(o => {
     const type = o.ticket?.schedule?.route?.transportType || o.transportType || "kereta";
-    return type === "kereta";
+    return type === "kereta" && o.status === "paid";
   });
   const planeOrders = filteredOrders.filter(o => {
     const type = o.ticket?.schedule?.route?.transportType || o.transportType || "pesawat";
-    return type === "pesawat";
+    return type === "pesawat" && o.status === "paid";
   });
   
-  const trainRev = trainOrders.reduce((acc, o) => acc + (o.ticket?.price || o.price || 0), 0);
-  const planeRev = planeOrders.reduce((acc, o) => acc + (o.ticket?.price || o.price || 0), 0);
+  const trainRev = trainOrders.reduce((acc, o) => acc + Number(o.ticket?.price || o.price || 0), 0);
+  const planeRev = planeOrders.reduce((acc, o) => acc + Number(o.ticket?.price || o.price || 0), 0);
   const totalRev = trainRev + planeRev || 1;
   
   const trainPercentage = Math.round((trainRev / totalRev) * 100);
