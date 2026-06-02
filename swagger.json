@@ -1,0 +1,1712 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "summary": "Login — semua role",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🔑 Auth"
+        ]
+      }
+    },
+    "/api/auth/profile": {
+      "get": {
+        "operationId": "AuthController_getProfile",
+        "summary": "Lihat profil sendiri",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🔑 Auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "AuthController_updateProfile",
+        "summary": "Update profil sendiri",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🔑 Auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "summary": "Daftar akun baru",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🔑 Auth"
+        ]
+      }
+    },
+    "/api/admin/dashboard": {
+      "get": {
+        "operationId": "AdminController_getDashboard",
+        "summary": "Statistik sistem",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👑 Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users": {
+      "get": {
+        "operationId": "AdminController_getAllUsers",
+        "summary": "Daftar semua user",
+        "parameters": [
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👑 Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "AdminController_createUser",
+        "summary": "Buat user baru",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👑 Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{id}": {
+      "get": {
+        "operationId": "AdminController_getUserById",
+        "summary": "Detail user by ID",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👑 Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "AdminController_updateUser",
+        "summary": "Update user",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👑 Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AdminController_deleteUser",
+        "summary": "Hapus user",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👑 Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/users/{id}/topup": {
+      "post": {
+        "operationId": "AdminController_topup",
+        "summary": "Topup saldo user",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👑 Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/orders": {
+      "get": {
+        "operationId": "AdminController_getAllOrders",
+        "summary": "Semua data pembelian",
+        "parameters": [
+          {
+            "name": "transport_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "kereta",
+                "pesawat"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👑 Admin"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/routes": {
+      "get": {
+        "operationId": "RoutesController_getAll",
+        "summary": "Daftar semua rute",
+        "parameters": [
+          {
+            "name": "transport_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "kereta",
+                "pesawat"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "origin",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destination",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🛤️ Rute Perjalanan"
+        ]
+      },
+      "post": {
+        "operationId": "RoutesController_create",
+        "summary": "Tambah rute baru",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRouteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🛤️ Rute Perjalanan"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/routes/{id}": {
+      "put": {
+        "operationId": "RoutesController_update",
+        "summary": "Update rute",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRouteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🛤️ Rute Perjalanan"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "RoutesController_delete",
+        "summary": "Hapus rute",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🛤️ Rute Perjalanan"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/schedules": {
+      "get": {
+        "operationId": "SchedulesController_getAll",
+        "summary": "Daftar jadwal (filter: transport_type, origin, destination, date)",
+        "parameters": [
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "description": "Format: YYYY-MM-DD",
+            "schema": {}
+          },
+          {
+            "name": "destination",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "origin",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "transport_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "kereta",
+                "pesawat"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "📅 Jadwal"
+        ]
+      },
+      "post": {
+        "operationId": "SchedulesController_create",
+        "summary": "Buat jadwal baru + auto-generate kursi",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScheduleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "📅 Jadwal"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/schedules/{id}": {
+      "put": {
+        "operationId": "SchedulesController_update",
+        "summary": "Update jadwal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScheduleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "📅 Jadwal"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "SchedulesController_delete",
+        "summary": "Hapus jadwal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "📅 Jadwal"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/schedules/{id}/delay-gate": {
+      "patch": {
+        "operationId": "SchedulesController_updateDelayGate",
+        "summary": "Update status delay & gate keberangkatan (petugas/admin)",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DelayGateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "📅 Jadwal"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/tickets": {
+      "get": {
+        "operationId": "TicketsController_getAll",
+        "summary": "Daftar tiket",
+        "parameters": [
+          {
+            "name": "transport_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "kereta",
+                "pesawat"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "tersedia",
+                "dipesan"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "seat_class",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ekonomi",
+                "vip",
+                "eksekutif"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "schedule_id",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🎟️ Tiket"
+        ]
+      },
+      "post": {
+        "operationId": "TicketsController_create",
+        "summary": "Tambah tiket manual",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🎟️ Tiket"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/tickets/seats/{scheduleId}": {
+      "get": {
+        "operationId": "TicketsController_getSeatMap",
+        "summary": "Peta kursi untuk satu jadwal",
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🎟️ Tiket"
+        ]
+      }
+    },
+    "/api/tickets/passengers/{scheduleId}": {
+      "get": {
+        "operationId": "TicketsController_getPassengers",
+        "summary": "Daftar penumpang (petugas/admin)",
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🎟️ Tiket"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/tickets/{orderId}/boarding": {
+      "patch": {
+        "operationId": "TicketsController_updateBoardingStatus",
+        "summary": "Update status boarding penumpang (petugas/admin)",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🎟️ Tiket"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/tickets/{orderId}/baggage": {
+      "patch": {
+        "operationId": "TicketsController_updateBaggageWeight",
+        "summary": "Update timbangan bagasi penumpang (petugas/admin)",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🎟️ Tiket"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/tickets/{id}": {
+      "get": {
+        "operationId": "TicketsController_getById",
+        "summary": "Detail tiket",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🎟️ Tiket"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "TicketsController_update",
+        "summary": "Update tiket",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🎟️ Tiket"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "TicketsController_delete",
+        "summary": "Hapus tiket",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🎟️ Tiket"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/orders/my": {
+      "get": {
+        "operationId": "OrdersController_getMyOrders",
+        "summary": "Riwayat pesanan saya",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🛒 Pemesanan"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/orders/{id}": {
+      "get": {
+        "operationId": "OrdersController_getById",
+        "summary": "Detail pesanan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🛒 Pemesanan"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/orders": {
+      "post": {
+        "operationId": "OrdersController_create",
+        "summary": "Beli tiket",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "example": {
+                  "ticketId": "uuid",
+                  "passengerName": "Nama",
+                  "passengerIdNumber": "3578xxx",
+                  "passengerPhone": "082xx",
+                  "buyerUserId": "uuid (petugas/admin only)",
+                  "notes": "opsional"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🛒 Pemesanan"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/orders/{id}/refund": {
+      "post": {
+        "operationId": "OrdersController_refund",
+        "summary": "Refund tiket",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "example": {
+                  "refund_reason": "Alasan refund"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "🛒 Pemesanan"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/users/balance": {
+      "get": {
+        "operationId": "UsersController_getBalance",
+        "summary": "Cek saldo (user only)",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👤 Fitur User"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/users/transactions": {
+      "get": {
+        "operationId": "UsersController_getTransactions",
+        "summary": "Riwayat transaksi saldo (user only)",
+        "parameters": [
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "topup",
+                "pembelian",
+                "refund"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👤 Fitur User"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/users/cs-contact": {
+      "get": {
+        "operationId": "UsersController_getCSContact",
+        "summary": "Kontak customer service",
+        "parameters": [
+          {
+            "name": "transport_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "kereta",
+                "pesawat"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👤 Fitur User"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/users/search-tickets": {
+      "get": {
+        "operationId": "UsersController_searchTickets",
+        "summary": "Cari tiket tersedia",
+        "parameters": [
+          {
+            "name": "transport_type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "kereta",
+                "pesawat"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "origin",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "Malang",
+              "type": "string"
+            }
+          },
+          {
+            "name": "destination",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "Surabaya",
+              "type": "string"
+            }
+          },
+          {
+            "name": "seat_class",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "ekonomi",
+                "vip",
+                "eksekutif"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "description": "YYYY-MM-DD",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "👤 Fitur User"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/shift-logs": {
+      "get": {
+        "operationId": "ShiftLogsController_getLogs",
+        "summary": "Daftar semua jurnal catatan shift",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Jurnal Shift"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "ShiftLogsController_createLog",
+        "summary": "Tambah catatan shift baru",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShiftLogDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "Jurnal Shift"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "🚆✈️ Tiket App API",
+    "description": "## Backend Pemesanan Tiket Kereta & Pesawat\n      \n**4 Role:** Admin · Petugas Kereta · Petugas Pesawat · User\n\n### Cara menggunakan:\n1. Login via `POST /api/auth/login`\n2. Copy token dari response\n3. Klik tombol **Authorize** di atas → paste token\n4. Semua endpoint bertanda 🔒 sudah terautentikasi",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "🔑 Auth",
+      "description": "Login & profil"
+    },
+    {
+      "name": "👑 Admin",
+      "description": "Manajemen user, saldo, semua order"
+    },
+    {
+      "name": "🛤️ Rute Perjalanan",
+      "description": "CRUD rute kereta & pesawat"
+    },
+    {
+      "name": "📅 Jadwal",
+      "description": "CRUD jadwal + auto-generate kursi"
+    },
+    {
+      "name": "🎟️ Tiket",
+      "description": "Manajemen tiket & peta kursi"
+    },
+    {
+      "name": "🛒 Pemesanan",
+      "description": "Beli & refund tiket"
+    },
+    {
+      "name": "👤 Fitur User",
+      "description": "Saldo, transaksi, CS, cari tiket"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "rudi123"
+          },
+          "password": {
+            "type": "string",
+            "example": "password123"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "petugas_kereta",
+              "petugas_pesawat",
+              "user"
+            ],
+            "example": "user"
+          }
+        },
+        "required": [
+          "username",
+          "password",
+          "role"
+        ]
+      },
+      "UpdateProfileDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Nama Baru"
+          },
+          "email": {
+            "type": "string",
+            "example": "email@baru.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "08211111999"
+          },
+          "current_password": {
+            "type": "string",
+            "example": "passwordLama123"
+          },
+          "new_password": {
+            "type": "string",
+            "example": "passwordBaru123"
+          }
+        }
+      },
+      "RegisterDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Bayu Stang"
+          },
+          "username": {
+            "type": "string",
+            "example": "bayustang"
+          },
+          "email": {
+            "type": "string",
+            "example": "bayu@stang.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "081234567890"
+          },
+          "password": {
+            "type": "string",
+            "example": "password123"
+          }
+        },
+        "required": [
+          "name",
+          "username",
+          "email",
+          "password"
+        ]
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Nama Lengkap"
+          },
+          "username": {
+            "type": "string",
+            "example": "username123"
+          },
+          "email": {
+            "type": "string",
+            "example": "email@gmail.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "08211111111"
+          },
+          "password": {
+            "type": "string",
+            "example": "password123"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "petugas_kereta",
+              "petugas_pesawat",
+              "user"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "username",
+          "email",
+          "password",
+          "role"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "petugas_kereta",
+              "petugas_pesawat",
+              "user"
+            ]
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "TopupDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "example": 500000
+          },
+          "description": {
+            "type": "string",
+            "example": "Top-up via transfer BCA"
+          }
+        },
+        "required": [
+          "amount"
+        ]
+      },
+      "CreateRouteDto": {
+        "type": "object",
+        "properties": {
+          "transportType": {
+            "type": "string",
+            "enum": [
+              "kereta",
+              "pesawat"
+            ]
+          },
+          "origin": {
+            "type": "string",
+            "example": "Malang"
+          },
+          "destination": {
+            "type": "string",
+            "example": "Surabaya"
+          },
+          "originCode": {
+            "type": "string",
+            "example": "ML"
+          },
+          "destinationCode": {
+            "type": "string",
+            "example": "SB"
+          },
+          "distanceKm": {
+            "type": "number",
+            "example": 89
+          }
+        },
+        "required": [
+          "transportType",
+          "origin",
+          "destination"
+        ]
+      },
+      "UpdateRouteDto": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string"
+          },
+          "originCode": {
+            "type": "string"
+          },
+          "destinationCode": {
+            "type": "string"
+          },
+          "distanceKm": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateScheduleDto": {
+        "type": "object",
+        "properties": {
+          "routeId": {
+            "type": "string",
+            "example": "uuid-route-id"
+          },
+          "vehicleName": {
+            "type": "string",
+            "example": "Argo Bromo Anggrek"
+          },
+          "vehicleCode": {
+            "type": "string",
+            "example": "KA-001"
+          },
+          "departureTime": {
+            "type": "string",
+            "example": "2025-12-25T08:00:00Z"
+          },
+          "arrivalTime": {
+            "type": "string",
+            "example": "2025-12-25T20:00:00Z"
+          },
+          "totalSeatsEconomy": {
+            "type": "number",
+            "example": 60,
+            "default": 0
+          },
+          "totalSeatsVip": {
+            "type": "number",
+            "example": 20,
+            "default": 0
+          },
+          "totalSeatsExecutive": {
+            "type": "number",
+            "example": 10,
+            "default": 0
+          },
+          "priceEconomy": {
+            "type": "number",
+            "example": 200000
+          },
+          "priceVip": {
+            "type": "number",
+            "example": 350000
+          },
+          "priceExecutive": {
+            "type": "number",
+            "example": 600000
+          }
+        },
+        "required": [
+          "routeId",
+          "vehicleName",
+          "departureTime",
+          "arrivalTime"
+        ]
+      },
+      "UpdateScheduleDto": {
+        "type": "object",
+        "properties": {
+          "vehicleName": {
+            "type": "string"
+          },
+          "vehicleCode": {
+            "type": "string"
+          },
+          "departureTime": {
+            "type": "string"
+          },
+          "arrivalTime": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "scheduled",
+              "boarding",
+              "departed",
+              "arrived",
+              "cancelled"
+            ]
+          }
+        }
+      },
+      "DelayGateDto": {
+        "type": "object",
+        "properties": {
+          "delayMinutes": {
+            "type": "string",
+            "example": "Terlambat 15 Menit"
+          },
+          "gateNumber": {
+            "type": "string",
+            "example": "Gate 2B"
+          },
+          "flightStatus": {
+            "type": "string",
+            "example": "Boarding Now"
+          }
+        }
+      },
+      "CreateShiftLogDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "example": "Handover shift malam, manifest aman."
+          },
+          "status": {
+            "type": "string",
+            "example": "Normal",
+            "enum": [
+              "Normal",
+              "Delay",
+              "Overweight",
+              "Maintenance"
+            ]
+          }
+        },
+        "required": [
+          "text",
+          "status"
+        ]
+      }
+    }
+  }
+}
