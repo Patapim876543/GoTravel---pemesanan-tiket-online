@@ -900,9 +900,11 @@ export default function AdminPage() {
   };
 
   const renderSeat = (seatCode: string) => {
-    const passenger = manifestPassengers.find(
-      (p) => p.seatNumber && p.seatNumber.toUpperCase() === seatCode.toUpperCase()
-    );
+    const passenger = manifestPassengers.find((p) => {
+      if (!p.seatNumber) return false;
+      const cleanPassengerSeat = p.seatNumber.toUpperCase().replace(/^[EXV]/, "");
+      return cleanPassengerSeat === seatCode.toUpperCase();
+    });
     const isOccupied = !!passenger;
     const isBoarded = passenger && passenger.boardingStatus === "Boarded";
     
@@ -917,9 +919,9 @@ export default function AdminPage() {
             ? "bg-blue-600 text-white border border-blue-700 hover:bg-blue-700 cursor-pointer active:scale-95"
             : "bg-white text-slate-400 border border-slate-200/80 hover:bg-slate-50 hover:border-slate-305 cursor-default"
         }`}
-        title={isOccupied ? `${seatCode}: ${passenger.passengerName} (Klik untuk Check-In)` : `${seatCode}: Tersedia`}
+        title={isOccupied ? `${passenger.seatNumber}: ${passenger.passengerName} (Klik untuk Check-In)` : `${seatCode}: Tersedia`}
       >
-        <span>{seatCode}</span>
+        <span>{passenger ? passenger.seatNumber : seatCode}</span>
         {isOccupied && (
           <div className="absolute bottom-full mb-1.5 hidden group-hover:block z-50 w-44 bg-slate-900/95 text-white text-[10px] p-2.5 rounded-lg shadow-xl leading-relaxed border border-slate-700 text-center font-bold">
             <span className="block">{passenger.passengerName}</span>
