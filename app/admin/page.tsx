@@ -68,6 +68,7 @@ export default function AdminPage() {
   const [schPriceEco, setSchPriceEco] = useState<number>(100000);
   const [schPriceVip, setSchPriceVip] = useState<number>(300000);
   const [schPriceExe, setSchPriceExe] = useState<number>(200000);
+  const [schSearchQuery, setSchSearchQuery] = useState("");
 
   // User
   const [usrName, setUsrName] = useState("");
@@ -978,6 +979,18 @@ export default function AdminPage() {
       const matchDest = dest.toLowerCase().includes(activeCity.toLowerCase());
       if (!matchOrigin && !matchDest) return false;
     }
+
+    // 3. Search Query Filter
+    if (schSearchQuery.trim()) {
+      const query = schSearchQuery.toLowerCase().trim();
+      const matchVehicle = (sch.vehicleName || "").toLowerCase().includes(query) ||
+                            (sch.vehicleCode || "").toLowerCase().includes(query);
+      const matchOrigin = (sch.route?.origin || "").toLowerCase().includes(query) ||
+                          (sch.route?.originCode || "").toLowerCase().includes(query);
+      const matchDest = (sch.route?.destination || "").toLowerCase().includes(query) ||
+                        (sch.route?.destinationCode || "").toLowerCase().includes(query);
+      if (!matchVehicle && !matchOrigin && !matchDest) return false;
+    }
     return true;
   });
 
@@ -1662,6 +1675,35 @@ export default function AdminPage() {
                     )}
                   </div>
 
+                  {/* Search Bar & Stats */}
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div className="relative w-full md:max-w-md">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                      </span>
+                      <input
+                        type="text"
+                        value={schSearchQuery}
+                        onChange={(e) => setSchSearchQuery(e.target.value)}
+                        placeholder="Cari jadwal (armada, kode KA/flight, asal/tujuan)..."
+                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 hover:bg-slate-100/50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner"
+                      />
+                      {schSearchQuery && (
+                        <button
+                          onClick={() => setSchSearchQuery("")}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <div className="text-xs font-bold text-slate-400">
+                      Menampilkan <span className="text-slate-700">{filteredSchedules.length}</span> dari <span className="text-slate-700">{schedules.length}</span> jadwal keberangkatan.
+                    </div>
+                  </div>
+
                   {/* Schedules Table */}
                   <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
@@ -1672,8 +1714,7 @@ export default function AdminPage() {
                             <th className="p-4">Jenis</th>
                             <th className="p-4">Rute Perjalanan</th>
                             <th className="p-4">Keberangkatan</th>
-                            <th className="p-4">Harga Ekonomi</th>
-                            <th className="p-4">Harga Exe</th>
+                            <th className="p-4">Harga per Kelas</th>
                             <th className="p-4 text-right">Aksi</th>
                           </tr>
                         </thead>
@@ -1716,8 +1757,22 @@ export default function AdminPage() {
                                  <td className="p-4 text-xs font-semibold text-slate-800">
                                    {formatDateTime(sch.departureTime)}
                                  </td>
-                                 <td className="p-4">{formatRupiah(sch.priceEconomy || 0)}</td>
-                                 <td className="p-4">{formatRupiah(sch.priceExecutive || 0)}</td>
+                                 <td className="p-4">
+                                   <div className="flex flex-col gap-1.5">
+                                     <div className="flex items-center gap-1.5">
+                                       <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 uppercase tracking-wider w-8 text-center shrink-0">Eco</span>
+                                       <span className="text-xs font-mono font-bold text-slate-700">{formatRupiah(sch.priceEconomy || 0)}</span>
+                                     </div>
+                                     <div className="flex items-center gap-1.5">
+                                       <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 uppercase tracking-wider w-8 text-center shrink-0">Exe</span>
+                                       <span className="text-xs font-mono font-bold text-slate-700">{formatRupiah(sch.priceExecutive || 0)}</span>
+                                     </div>
+                                     <div className="flex items-center gap-1.5">
+                                       <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 uppercase tracking-wider w-8 text-center shrink-0">VIP</span>
+                                       <span className="text-xs font-mono font-bold text-slate-700">{formatRupiah(sch.priceVip || 0)}</span>
+                                     </div>
+                                   </div>
+                                 </td>
                                  <td className="p-4 text-right flex justify-end gap-2">
                                    {user.role !== "admin" && (
                                      <>
