@@ -52,64 +52,79 @@ interface OrderItem {
 }
 
 export default function BoardingPage() {
+  // Mengambil data user yang sedang login dari context autentikasi
   const { user } = useAuth();
+  // Mengambil fungsi notifikasi toast
   const { showToast } = useToast();
 
+  // State untuk menyimpan daftar tiket aktif yang siap boarding
   const [orders, setOrders] = useState<OrderItem[]>([]);
+  // State untuk menyimpan semua data tiket (termasuk yang sudah boarding/refund)
   const [allOrders, setAllOrders] = useState<OrderItem[]>([]);
+  // State untuk menyimpan tiket yang sedang dipilih oleh petugas untuk dicheck-in
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
+  // State untuk menyimpan input kode verifikasi manual dari petugas
   const [manualCode, setManualCode] = useState("");
+  // State indikator loading saat proses boarding sedang berjalan
   const [isScanning, setIsScanning] = useState(false);
+  // State penanda sukses check-in setelah proses boarding selesai
   const [scanSuccess, setScanSuccess] = useState(false);
+  // State status boarding tiket terpilih ("Booked" atau "Boarded")
   const [boardingStatus, setBoardingStatus] = useState<"Booked" | "Boarded">("Booked");
 
-  // Load orders from localStorage to allow simulator test
+  // Hook useEffect untuk memuat data pesanan ketika halaman dibuka dan user teridentifikasi
   useEffect(() => {
     if (user) {
       loadOrders();
     }
   }, [user]);
 
+  // Fungsi asinkronus untuk memuat pesanan tiket dari database backend
   const loadOrders = async (keepSelectedId?: string) => {
     if (typeof window !== "undefined") {
       let apiList: any[] = [];
       try {
+        // Mengambil seluruh pesanan dari API backend
         const res = await apiRequest<any>("/api/admin/orders", {
           params: { limit: 1000 }
         });
         const ordersArray = Array.isArray(res) ? res : res.data || [];
         apiList = ordersArray;
       } catch (err: any) {
-        console.warn("Failed to fetch real orders from API:", err);
+        console.warn("Gagal mengambil pesanan dari API database:", err);
       }
 
+      // Mengambil pesanan mock lokal jika ada (dari riwayat pengujian sebelumnya)
       let mockList: any[] = [];
       const stored = localStorage.getItem("mock_orders");
       if (stored) {
         try {
           mockList = JSON.parse(stored);
         } catch (e) {
-          console.error("Failed to parse mock_orders", e);
+          console.error("Gagal melakukan parsing mock_orders", e);
         }
       }
 
+      // Menggabungkan pesanan mock lokal dan pesanan riil dari database
       const list = [...mockList, ...apiList];
       const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
       
-      // Role-based ticket filtering for officers
+      // Melakukan filter tiket berdasarkan jenis armada petugas yang sedang bertugas
       let filteredList = list;
       if (user?.role === "petugas_kereta") {
+        // Petugas kereta hanya bisa melihat tiket yang bertipe kereta
         filteredList = list.filter(
           (o: any) => o.ticket?.schedule?.route?.transportType === "kereta"
         );
       } else if (user?.role === "petugas_pesawat") {
+        // Petugas pesawat hanya bisa melihat tiket yang bertipe pesawat
         filteredList = list.filter(
           (o: any) => o.ticket?.schedule?.route?.transportType === "pesawat"
         );
       }
       setAllOrders(filteredList);
 
-      // Filter to show active orders that are not refunded, cancelled, or already boarded
+      // Filter tiket yang aktif (belum direfund, belum dibatalkan, dan belum boarding)
       let activeOrders = filteredList.filter((o: any) => {
         const status = o.status;
         const bStatus = o.boardingStatus || o.boarding_status || storedBoarding[o.id] || "Booked";
@@ -118,6 +133,7 @@ export default function BoardingPage() {
 
       setOrders(activeOrders);
       
+      // Jika parameter keepSelectedId dikirimkan, pertahankan pilihan tiket tersebut
       if (keepSelectedId) {
         const matched = list.find((o: any) => o.id === keepSelectedId);
         if (matched) {
@@ -130,52 +146,9 @@ export default function BoardingPage() {
     }
   };
 
-  // Generate a mock ticket for demo testing
-  const handleGenerateDemoTicket = (type: "kereta" | "pesawat") => {
-    if (typeof window !== "undefined") {
-      const isKereta = type === "kereta";
-      const newOrder = {
-        id: `mock-order-${Math.random().toString(36).substring(2, 9)}`,
-        passengerName: `Demo Passenger ${Math.floor(Math.random() * 100) + 1}`,
-        passengerIdNumber: `35780${Math.floor(10000000000 + Math.random() * 90000000000)}`,
-        passengerPhone: `0812${Math.floor(10000000 + Math.random() * 90000000)}`,
-        status: "paid",
-        createdAt: new Date().toISOString(),
-        ticket: {
-          id: `mock-ticket-${Math.random().toString(36).substring(2, 9)}`,
-          seatNumber: `${Math.floor(Math.random() * 10) + 1}${["A", "B", "C", "D"][Math.floor(Math.random() * 4)]}`,
-          seatClass: ["ekonomi", "eksekutif", "vip"][Math.floor(Math.random() * 3)],
-          price: isKereta ? 120000 : 750000,
-          schedule: {
-            id: `mock-sch-${type}-${new Date().toISOString().split("T")[0]}-${Math.floor(Math.random() * 10)}`,
-            vehicleName: isKereta ? "Argo Bromo Anggrek" : "Garuda Indonesia",
-            vehicleCode: isKereta ? "KA-001" : "GA-204",
-            departureTime: new Date(Date.now() + 2 * 3600000).toISOString(),
-            arrivalTime: new Date(Date.now() + 5 * 3600000).toISOString(),
-            route: {
-              origin: "JAKARTA",
-              destination: "SURABAYA",
-              originCode: "JKT",
-              destinationCode: "SUB",
-              transportType: type
-            }
-          }
-        }
-      };
-
-      const stored = localStorage.getItem("mock_orders");
-      const list = stored ? JSON.parse(stored) : [];
-      list.unshift(newOrder);
-      localStorage.setItem("mock_orders", JSON.stringify(list));
-      
-      showToast(`Tiket Demo ${isKereta ? "Kereta" : "Pesawat"} berhasil dibuat.`, "success");
-      loadOrders();
-    }
-  };
-
-  // Delete ticket from local orders
+  // Fungsi untuk menghapus tiket mock lokal dari daftar
   const handleDeleteTicket = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering selection
+    e.stopPropagation(); // Mencegah terpicunya aksi pemilihan baris
     if (confirm("Apakah Anda yakin ingin menghapus tiket ini dari daftar?")) {
       if (typeof window !== "undefined") {
         const stored = localStorage.getItem("mock_orders");
@@ -185,29 +158,29 @@ export default function BoardingPage() {
             const filtered = list.filter((o: any) => o.id !== id);
             localStorage.setItem("mock_orders", JSON.stringify(filtered));
             
-            // Clean up boarding status
+            // Bersihkan data status boarding lokal untuk tiket tersebut
             const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
             delete storedBoarding[id];
             localStorage.setItem("local_boarding_status", JSON.stringify(storedBoarding));
 
             showToast("Tiket berhasil dihapus.", "success");
             
-            // Reload orders
+            // Muat ulang daftar tiket
             loadOrders();
             
-            // If the deleted ticket was selected, clear selection
+            // Jika tiket yang dihapus sedang dipilih, reset detail panel
             if (selectedOrder?.id === id) {
               setSelectedOrder(null);
             }
           } catch (err) {
-            console.error("Failed to delete order", err);
+            console.error("Gagal menghapus tiket", err);
           }
         }
       }
     }
   };
 
-  // Sync boarding status when selected order changes
+  // Hook useEffect untuk memetakan status boarding setiap kali tiket yang dipilih berubah
   useEffect(() => {
     if (selectedOrder) {
       const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
@@ -241,22 +214,24 @@ export default function BoardingPage() {
     }
   };
 
-  // Search and verify manual code input
+  // Fungsi untuk mencari dan memverifikasi kode tiket secara manual
   const handleSearchTicket = (codeToSearch?: string) => {
+    // Jika parameter input kosong, gunakan input manualCode yang dimasukkan oleh petugas
     const rawCode = (codeToSearch !== undefined ? codeToSearch : manualCode).trim();
     if (!rawCode) {
       showToast("Masukkan kode tiket atau order terlebih dahulu.", "error");
       return;
     }
 
-    // Clean up all spaces to handle inputs like "ORDER - 25EFEF52"
+    // Membersihkan spasi pada kode agar format input konsisten (misal: "ORDER - A" -> "ORDER-A")
     let cleanCode = rawCode.replace(/\s+/g, "");
     
-    // Clean up prefix "ORDER-" or "order-" case-insensitively
+    // Menghilangkan awalan "ORDER-" atau "order-" jika ada agar bisa membandingkan kode utama saja
     if (cleanCode.toLowerCase().startsWith("order-")) {
       cleanCode = cleanCode.substring(6);
     }
 
+    // Mencari tiket yang cocok di dalam state allOrders berdasarkan Order ID, Ticket ID, atau Order Code
     const matched = allOrders.find((o) => {
       const matchId = o.id.toLowerCase() === rawCode.toLowerCase() ||
                       o.id.toLowerCase().replace(/\s+/g, "").startsWith(cleanCode.toLowerCase());
@@ -270,25 +245,30 @@ export default function BoardingPage() {
       return matchId || matchTicketId || matchOrderCode;
     });
 
+    // Jika tiket tidak ditemukan, tampilkan pesan error
     if (!matched) {
       showToast("Kode tiket atau order tidak ditemukan.", "error");
       return;
     }
 
+    // Validasi status tiket: jika sudah direfund, tampilkan error
     if (matched.status === "refunded") {
       showToast("Tiket ini telah direfund dan tidak valid untuk boarding.", "error");
       return;
     }
+    // Validasi status tiket: jika sudah dibatalkan, tampilkan error
     if (matched.status === "cancelled") {
       showToast("Tiket ini telah dibatalkan dan tidak valid untuk boarding.", "error");
       return;
     }
 
+    // Menyimpan tiket yang ditemukan ke state selectedOrder
     setSelectedOrder(matched);
     const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
     const bStatus = matched.boardingStatus || matched.boarding_status || storedBoarding[matched.id] || "Booked";
     setBoardingStatus(bStatus as "Booked" | "Boarded");
     
+    // Memberikan umpan balik (toast) kepada petugas mengenai status boarding penumpang
     if (bStatus === "Boarded") {
       showToast("Tiket ditemukan. Status: Sudah Boarding.", "info");
     } else {
@@ -296,31 +276,33 @@ export default function BoardingPage() {
     }
   };
 
-  // Confirm boarding manually
+  // Fungsi untuk mengonfirmasi keberangkatan (boarding/check-in) secara manual
   const handleConfirmBoarding = () => {
     if (!selectedOrder) return;
 
     setIsScanning(true);
     setScanSuccess(false);
 
-    // Simulate 1 second processing time
+    // Mensimulasikan proses check-in selama 1 detik (agar terasa seperti scan sungguhan)
     setTimeout(async () => {
       setIsScanning(false);
       setScanSuccess(true);
-      playScanBeep();
+      playScanBeep(); // Bunyi beep sukses scan
 
       if (selectedOrder) {
+        // Jika bukan tiket mock/simulasi, kirim request update status ke API backend
         if (!selectedOrder.id.startsWith("mock-order-")) {
           try {
             await apiRequest(`/api/tickets/${selectedOrder.id}/boarding`, {
               method: "PATCH",
-              body: { boardingStatus: "Boarded" }
+              body: { boardingStatus: "Boarded" } // Mengubah status menjadi 'Boarded' di database
             });
           } catch (apiErr: any) {
-            console.warn("Backend API boarding failed, using local fallback:", apiErr);
+            console.warn("API Boarding gagal, menggunakan status lokal:", apiErr);
           }
         }
 
+        // Menyimpan status 'Boarded' secara lokal di browser untuk cadangan sinkronisasi
         const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
         storedBoarding[selectedOrder.id] = "Boarded";
         localStorage.setItem("local_boarding_status", JSON.stringify(storedBoarding));
@@ -328,12 +310,13 @@ export default function BoardingPage() {
         setBoardingStatus("Boarded");
         showToast(`Boarding Sukses! Penumpang ${selectedOrder.passengerName} telah check-in.`, "success");
         
+        // Memuat ulang daftar tiket dengan mempertahankan seleksi tiket saat ini
         loadOrders(selectedOrder.id);
       }
     }, 1000);
   };
 
-  // Print boarding pass
+  // Fungsi untuk mencetak boarding pass fisik (membuka dialog cetak browser)
   const handlePrintBoardingPass = () => {
     window.print();
   };
@@ -390,59 +373,14 @@ export default function BoardingPage() {
               </h2>
 
               <div className="space-y-4">
-                {orders.length > 0 && (
-                  <div className="flex gap-2 justify-end mb-2">
-                    {(!user || user.role === "admin" || user.role === "petugas_kereta") && (
-                      <button
-                        type="button"
-                        onClick={() => handleGenerateDemoTicket("kereta")}
-                        className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer"
-                      >
-                        ➕ Demo Kereta
-                      </button>
-                    )}
-                    {(!user || user.role === "admin" || user.role === "petugas_pesawat") && (
-                      <button
-                        type="button"
-                        onClick={() => handleGenerateDemoTicket("pesawat")}
-                        className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer"
-                      >
-                        ➕ Demo Pesawat
-                      </button>
-                    )}
-                  </div>
-                )}
-
                 {orders.length === 0 ? (
-                  <div className="text-center py-8 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-4">
-                    <div>
-                      <p className="text-slate-400 text-sm font-medium">
-                        Tidak ada tiket aktif yang siap untuk check-in.
-                      </p>
-                      <p className="text-slate-400 text-xs mt-2 font-medium">
-                        Silakan lakukan pemesanan tiket terlebih dahulu melalui panel penumpang agar tiket muncul di sini, atau buat tiket demo instan di bawah ini.
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {(!user || user.role === "admin" || user.role === "petugas_kereta") && (
-                        <button
-                          type="button"
-                          onClick={() => handleGenerateDemoTicket("kereta")}
-                          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-                        >
-                          ➕ Generate Tiket Demo Kereta
-                        </button>
-                      )}
-                      {(!user || user.role === "admin" || user.role === "petugas_pesawat") && (
-                        <button
-                          type="button"
-                          onClick={() => handleGenerateDemoTicket("pesawat")}
-                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-                        >
-                          ➕ Generate Tiket Demo Pesawat
-                        </button>
-                      )}
-                    </div>
+                  <div className="text-center py-8 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                    <p className="text-slate-400 text-sm font-medium">
+                      Tidak ada tiket aktif yang siap untuk check-in.
+                    </p>
+                    <p className="text-slate-400 text-xs mt-2 font-medium">
+                      Silakan lakukan pemesanan tiket terlebih dahulu melalui panel penumpang agar tiket muncul di sini.
+                    </p>
                   </div>
                 ) : (
                   <div className="max-h-[360px] overflow-y-auto pr-1 space-y-2">
