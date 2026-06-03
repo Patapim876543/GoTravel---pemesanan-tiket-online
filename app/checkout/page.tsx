@@ -437,25 +437,6 @@ function CheckoutForm() {
       {/* Title */}
       <h2 className="text-2xl font-bold text-slate-800 mb-3">Pemesanan & Pemilihan Kursi</h2>
 
-      {/* Transaction Mode Banner */}
-      {scheduleId.startsWith("mock-") ? (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-8 text-amber-800 flex items-start gap-3 shadow-sm animate-fade-in">
-          <span className="text-lg">💡</span>
-          <div className="text-xs font-medium leading-relaxed">
-            <p className="font-bold text-amber-900 text-sm">Mode Simulasi (Demo Fallback)</p>
-            <p className="mt-0.5">Rute & tanggal yang Anda pilih tidak memiliki jadwal aktif di database. Transaksi ini disimpan secara lokal di browser Anda (tidak terdaftar di database petugas).</p>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-8 text-emerald-800 flex items-start gap-3 shadow-sm animate-fade-in">
-          <span className="text-lg">✅</span>
-          <div className="text-xs font-medium leading-relaxed">
-            <p className="font-bold text-emerald-900 text-sm">Mode Transaksi Riil (Database)</p>
-            <p className="mt-0.5">Pembelian tiket ini akan dicatat langsung ke database server, memotong saldo akun secara real-time, dan terhubung langsung ke boarding scanner petugas.</p>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* Left Column: Passenger Info Form */}
