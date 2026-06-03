@@ -1045,18 +1045,20 @@ export default function AdminPage() {
   })();
 
   const maxRev = Math.max(...last7DaysData.map(d => d.revenue), 100000);
+  const maxVal = maxRev * 1.15;
   
   // Build points for SVG path
   const svgWidth = 500;
-  const svgHeight = 200;
-  const paddingX = 55;
+  const svgHeight = 220;
+  const paddingX = 85;
   const paddingY = 30;
+  const topPadding = 45;
   const chartWidth = svgWidth - paddingX - 20;
-  const chartHeight = svgHeight - paddingY - 20;
+  const chartHeight = svgHeight - paddingY - topPadding;
   
   const points = last7DaysData.map((d, index) => {
     const x = paddingX + (index * (chartWidth / 6));
-    const y = svgHeight - paddingY - (d.revenue / maxRev) * chartHeight;
+    const y = svgHeight - paddingY - (d.revenue / maxVal) * chartHeight;
     return { x, y, label: d.label, revenue: d.revenue, count: d.count };
   });
   
@@ -1358,7 +1360,7 @@ export default function AdminPage() {
                                   textAnchor="end"
                                   className="text-[9px] font-mono fill-slate-400 font-bold"
                                 >
-                                  {ratio === 0 ? "Rp 0" : formatRupiah(ratio * maxRev)}
+                                  {ratio === 0 ? "Rp 0" : formatRupiah(ratio * maxVal)}
                                 </text>
                               </g>
                             );
