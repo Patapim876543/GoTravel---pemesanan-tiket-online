@@ -122,13 +122,34 @@ function CheckoutForm() {
           const seatClassVal = (selectedClass || "ekonomi") as any;
           const priceVal = seatClassVal === "vip" ? vehicle.price * 3 : seatClassVal === "eksekutif" ? vehicle.price * 2 : vehicle.price;
 
+          // Get list of already booked mock seats from localStorage
+          let bookedMockSeatIds: string[] = [];
+          if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("mock_orders");
+            if (stored) {
+              try {
+                const list = JSON.parse(stored);
+                // Filter only paid/active tickets
+                bookedMockSeatIds = list
+                  .filter((o: any) => o.status === "paid" || o.status === "pending_refund")
+                  .map((o: any) => o.ticket?.id);
+              } catch (e) {
+                console.error("Failed to parse mock_orders", e);
+              }
+            }
+          }
+
           for (let r = 1; r <= rows; r++) {
             for (let c = 0; c < cols.length; c++) {
               const seatNum = `${r}${cols[c]}`;
-              // Make some seats randomly booked to look realistic
-              const isBooked = (r * (c + 1)) % 3 === 0;
+              const seatId = `mock-ticket-${scheduleId}-${seatNum}`;
+              
+              // Booked if already purchased in localStorage OR randomly pre-booked
+              const isAlreadyOrdered = bookedMockSeatIds.includes(seatId);
+              const isBooked = isAlreadyOrdered || ((r * (c + 1)) % 3 === 0);
+              
               mockSeats.push({
-                id: `mock-ticket-${scheduleId}-${seatNum}`,
+                id: seatId,
                 seatNumber: seatNum,
                 seatClass: seatClassVal,
                 price: priceVal,
