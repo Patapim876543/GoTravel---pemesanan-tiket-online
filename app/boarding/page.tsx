@@ -25,6 +25,8 @@ interface OrderItem {
   status: string;
   notes?: string;
   createdAt: string;
+  boardingStatus?: string;
+  boarding_status?: string;
   ticket: {
     id: string;
     seatNumber: string;
@@ -52,12 +54,12 @@ export default function BoardingPage() {
   const { showToast } = useToast();
 
   const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [allOrders, setAllOrders] = useState<OrderItem[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
   const [manualCode, setManualCode] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [boardingStatus, setBoardingStatus] = useState<"Booked" | "Boarded">("Booked");
-  const [activeTab, setActiveTab] = useState<"select" | "manual">("select");
 
   // Load orders from localStorage to allow simulator test
   useEffect(() => {
@@ -90,23 +92,25 @@ export default function BoardingPage() {
       const list = [...mockList, ...apiList];
       const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
       
+      // Role-based ticket filtering for officers
+      let filteredList = list;
+      if (user?.role === "petugas_kereta") {
+        filteredList = list.filter(
+          (o: any) => o.ticket?.schedule?.route?.transportType === "kereta"
+        );
+      } else if (user?.role === "petugas_pesawat") {
+        filteredList = list.filter(
+          (o: any) => o.ticket?.schedule?.route?.transportType === "pesawat"
+        );
+      }
+      setAllOrders(filteredList);
+
       // Filter to show active orders that are not refunded, cancelled, or already boarded
-      let activeOrders = list.filter((o: any) => {
+      let activeOrders = filteredList.filter((o: any) => {
         const status = o.status;
         const bStatus = o.boardingStatus || o.boarding_status || storedBoarding[o.id] || "Booked";
         return status !== "refunded" && status !== "cancelled" && bStatus !== "Boarded";
       });
-
-      // Role-based ticket type filtering for officers
-      if (user?.role === "petugas_kereta") {
-        activeOrders = activeOrders.filter(
-          (o: any) => o.ticket?.schedule?.route?.transportType === "kereta"
-        );
-      } else if (user?.role === "petugas_pesawat") {
-        activeOrders = activeOrders.filter(
-          (o: any) => o.ticket?.schedule?.route?.transportType === "pesawat"
-        );
-      }
 
       setOrders(activeOrders);
       
@@ -117,12 +121,7 @@ export default function BoardingPage() {
           setBoardingStatus(matched.boardingStatus || matched.boarding_status || storedBoarding[matched.id] || "Booked");
         }
       } else {
-        if (activeOrders.length > 0) {
-          setSelectedOrder(activeOrders[0]);
-          setBoardingStatus(activeOrders[0].boardingStatus || activeOrders[0].boarding_status || storedBoarding[activeOrders[0].id] || "Booked");
-        } else {
-          setSelectedOrder(null);
-        }
+        setSelectedOrder(null);
       }
     }
   };
@@ -238,45 +237,62 @@ export default function BoardingPage() {
     }
   };
 
-  // Simulate scanning code
-  const handleStartScan = () => {
-    let orderToScan = selectedOrder;
-
-    if (activeTab === "manual") {
-      if (!manualCode.trim()) {
-        showToast("Masukkan kode tiket atau order terlebih dahulu.", "error");
-        return;
-      }
-      // Look up manual code in current orders list
-      const matched = orders.find(
-        (o) => o.id === manualCode.trim() || o.ticket.id === manualCode.trim()
-      );
-      
-      if (!matched) {
-        showToast("Kode tiket / order tidak ditemukan. Gunakan kode yang valid.", "error");
-        return;
-      }
-      
-      orderToScan = matched;
-      setSelectedOrder(matched);
+  // Search and verify manual code input
+  const handleSearchTicket = (codeToSearch?: string) => {
+    const code = (codeToSearch !== undefined ? codeToSearch : manualCode).trim();
+    if (!code) {
+      showToast("Masukkan kode tiket atau order terlebih dahulu.", "error");
+      return;
     }
 
-    if (!orderToScan) return;
+    const matched = allOrders.find(
+      (o) => o.id.toLowerCase() === code.toLowerCase() || 
+             o.ticket.id.toLowerCase() === code.toLowerCase()
+    );
+
+    if (!matched) {
+      showToast("Kode tiket atau order tidak ditemukan.", "error");
+      return;
+    }
+
+    if (matched.status === "refunded") {
+      showToast("Tiket ini telah direfund dan tidak valid untuk boarding.", "error");
+      return;
+    }
+    if (matched.status === "cancelled") {
+      showToast("Tiket ini telah dibatalkan dan tidak valid untuk boarding.", "error");
+      return;
+    }
+
+    setSelectedOrder(matched);
+    const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
+    const bStatus = matched.boardingStatus || matched.boarding_status || storedBoarding[matched.id] || "Booked";
+    setBoardingStatus(bStatus as "Booked" | "Boarded");
+    
+    if (bStatus === "Boarded") {
+      showToast("Tiket ditemukan. Status: Sudah Boarding.", "info");
+    } else {
+      showToast("Tiket ditemukan dan valid. Silakan lakukan boarding.", "success");
+    }
+  };
+
+  // Confirm boarding manually
+  const handleConfirmBoarding = () => {
+    if (!selectedOrder) return;
 
     setIsScanning(true);
     setScanSuccess(false);
 
-    // Simulate 1.5 seconds verification time
+    // Simulate 1 second processing time
     setTimeout(async () => {
       setIsScanning(false);
       setScanSuccess(true);
       playScanBeep();
 
-      // Write boarding status to localStorage
-      if (orderToScan) {
-        if (!orderToScan.id.startsWith("mock-order-")) {
+      if (selectedOrder) {
+        if (!selectedOrder.id.startsWith("mock-order-")) {
           try {
-            await apiRequest(`/api/tickets/${orderToScan.id}/boarding`, {
+            await apiRequest(`/api/tickets/${selectedOrder.id}/boarding`, {
               method: "PATCH",
               body: { boardingStatus: "Boarded" }
             });
@@ -286,17 +302,15 @@ export default function BoardingPage() {
         }
 
         const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
-        storedBoarding[orderToScan.id] = "Boarded";
+        storedBoarding[selectedOrder.id] = "Boarded";
         localStorage.setItem("local_boarding_status", JSON.stringify(storedBoarding));
         
         setBoardingStatus("Boarded");
-        showToast(`Boarding Sukses! Penumpang ${orderToScan.passengerName} telah check-in.`, "success");
+        showToast(`Boarding Sukses! Penumpang ${selectedOrder.passengerName} telah check-in.`, "success");
         
-        // Refresh orders list to filter out the checked-in ticket from the sidebar,
-        // but keep the scanned ticket context.
-        loadOrders(orderToScan.id);
+        loadOrders(selectedOrder.id);
       }
-    }, 1500);
+    }, 1000);
   };
 
   // Print boarding pass
@@ -339,10 +353,10 @@ export default function BoardingPage() {
         {/* Title */}
         <div className="mb-8 text-center md:text-left no-print">
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">
-            Scanner Boarding & Verifikasi Tiket ({user?.role === "petugas_kereta" ? "Petugas Kereta" : "Petugas Pesawat"})
+            Verifikasi Boarding & Check-In Tiket ({user?.role === "petugas_kereta" ? "Petugas Kereta" : "Petugas Pesawat"})
           </h1>
           <p className="text-slate-500 mt-2 font-medium">
-            Verifikasi kode e-tiket penumpang, lakukan simulasi pemindaian gate, dan cetak Boarding Pass fisik resmi.
+            Verifikasi kode e-tiket penumpang secara manual, lakukan boarding check-in, dan cetak Boarding Pass fisik resmi.
           </p>
         </div>
 
@@ -352,314 +366,267 @@ export default function BoardingPage() {
             <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-xl shadow-slate-100/50">
               <h2 className="text-lg font-extrabold text-slate-800 mb-4 flex items-center gap-2">
                 <TicketIcon size={20} className="text-blue-600" />
-                Pilih Tiket Perjalanan
+                Daftar Tiket Aktif
               </h2>
 
-              {/* Tab Selector */}
-              <div className="flex border-b border-slate-100 mb-6">
-                <button
-                  onClick={() => setActiveTab("select")}
-                  className={`flex-1 pb-3 text-sm font-bold text-center border-b-2 transition-all cursor-pointer ${
-                    activeTab === "select"
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  Pilih Tiket Aktif
-                </button>
-                <button
-                  onClick={() => setActiveTab("manual")}
-                  className={`flex-1 pb-3 text-sm font-bold text-center border-b-2 transition-all cursor-pointer ${
-                    activeTab === "manual"
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  Input Kode Manual
-                </button>
-              </div>
+              <div className="space-y-4">
+                {orders.length > 0 && (
+                  <div className="flex gap-2 justify-end mb-2">
+                    {(!user || user.role === "admin" || user.role === "petugas_kereta") && (
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateDemoTicket("kereta")}
+                        className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer"
+                      >
+                        ➕ Demo Kereta
+                      </button>
+                    )}
+                    {(!user || user.role === "admin" || user.role === "petugas_pesawat") && (
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateDemoTicket("pesawat")}
+                        className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer"
+                      >
+                        ➕ Demo Pesawat
+                      </button>
+                    )}
+                  </div>
+                )}
 
-              {activeTab === "select" ? (
-                <div className="space-y-4">
-                  {orders.length > 0 && (
-                    <div className="flex gap-2 justify-end mb-2">
+                {orders.length === 0 ? (
+                  <div className="text-center py-8 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-4">
+                    <div>
+                      <p className="text-slate-400 text-sm font-medium">
+                        Tidak ada tiket aktif yang siap untuk check-in.
+                      </p>
+                      <p className="text-slate-400 text-xs mt-2 font-medium">
+                        Silakan lakukan pemesanan tiket terlebih dahulu melalui panel penumpang agar tiket muncul di sini, atau buat tiket demo instan di bawah ini.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2">
                       {(!user || user.role === "admin" || user.role === "petugas_kereta") && (
                         <button
                           type="button"
                           onClick={() => handleGenerateDemoTicket("kereta")}
-                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer"
+                          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
                         >
-                          ➕ Demo Kereta
+                          ➕ Generate Tiket Demo Kereta
                         </button>
                       )}
                       {(!user || user.role === "admin" || user.role === "petugas_pesawat") && (
                         <button
                           type="button"
                           onClick={() => handleGenerateDemoTicket("pesawat")}
-                          className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-[10px] font-extrabold transition-all cursor-pointer"
+                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
                         >
-                          ➕ Demo Pesawat
+                          ➕ Generate Tiket Demo Pesawat
                         </button>
                       )}
                     </div>
-                  )}
+                  </div>
+                ) : (
+                  <div className="max-h-[360px] overflow-y-auto pr-1 space-y-2">
+                    {orders.map((o) => {
+                      const isSelected = selectedOrder?.id === o.id;
+                      const isKereta = o.ticket.schedule.route.transportType === "kereta";
+                      const isBoarded =
+                        (typeof window !== "undefined"
+                          ? JSON.parse(localStorage.getItem("local_boarding_status") || "{}")[
+                              o.id
+                            ]
+                          : "Booked") === "Boarded";
 
-                  {orders.length === 0 ? (
-                    <div className="text-center py-8 px-4 border border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-4">
-                      <div>
-                        <p className="text-slate-400 text-sm font-medium">
-                          Tidak ada tiket aktif yang siap untuk check-in.
-                        </p>
-                        <p className="text-slate-400 text-xs mt-2 font-medium">
-                          Silakan lakukan pemesanan tiket terlebih dahulu melalui panel penumpang agar tiket muncul di sini, atau buat tiket demo instan di bawah ini.
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {(!user || user.role === "admin" || user.role === "petugas_kereta") && (
+                      return (
+                        <div
+                          key={o.id}
+                          className={`w-full group rounded-2xl border transition-all flex items-center pr-2 bg-white ${
+                            isSelected
+                              ? "border-blue-600 bg-blue-50/30 shadow-inner"
+                              : "border-slate-100 hover:border-slate-200"
+                          }`}
+                        >
                           <button
-                            type="button"
-                            onClick={() => handleGenerateDemoTicket("kereta")}
-                            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                            onClick={() => {
+                              setSelectedOrder(o);
+                              setManualCode(o.id);
+                            }}
+                            className="flex-1 text-left p-3.5 flex items-center gap-3 cursor-pointer min-w-0"
                           >
-                            ➕ Generate Tiket Demo Kereta
-                          </button>
-                        )}
-                        {(!user || user.role === "admin" || user.role === "petugas_pesawat") && (
-                          <button
-                            type="button"
-                            onClick={() => handleGenerateDemoTicket("pesawat")}
-                            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-                          >
-                            ➕ Generate Tiket Demo Pesawat
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="max-h-64 overflow-y-auto pr-1 space-y-2">
-                      {orders.map((o) => {
-                        const isSelected = selectedOrder?.id === o.id;
-                        const isKereta = o.ticket.schedule.route.transportType === "kereta";
-                        const isBoarded =
-                          (typeof window !== "undefined"
-                            ? JSON.parse(localStorage.getItem("local_boarding_status") || "{}")[
-                                o.id
-                              ]
-                            : "Booked") === "Boarded";
-
-                        return (
-                          <div
-                            key={o.id}
-                            className={`w-full group rounded-2xl border transition-all flex items-center pr-2 bg-white ${
-                              isSelected
-                                ? "border-blue-600 bg-blue-50/30 shadow-inner"
-                                : "border-slate-100 hover:border-slate-200"
-                            }`}
-                          >
-                            <button
-                              onClick={() => setSelectedOrder(o)}
-                              className="flex-1 text-left p-3.5 flex items-center gap-3 cursor-pointer min-w-0"
+                            <div
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isKereta ? "bg-amber-50 text-amber-600" : "bg-sky-50 text-sky-600"
+                              }`}
                             >
-                              <div
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                                  isKereta ? "bg-amber-50 text-amber-600" : "bg-sky-50 text-sky-600"
+                              {isKereta ? <TrainIcon size={20} /> : <PlaneIcon size={20} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-black text-slate-800 truncate">
+                                {o.ticket.schedule.vehicleName} ({o.ticket.schedule.vehicleCode})
+                              </p>
+                              <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">
+                                {o.ticket.schedule.route.originCode} ➔ {o.ticket.schedule.route.destinationCode} • {o.passengerName}
+                              </p>
+                            </div>
+                            <div>
+                              <span
+                                className={`text-[9px] px-2 py-0.5 font-extrabold rounded-full shrink-0 ${
+                                  isBoarded
+                                    ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                                    : "bg-amber-50 text-amber-600 border border-amber-100"
                                 }`}
                               >
-                                {isKereta ? <TrainIcon size={20} /> : <PlaneIcon size={20} />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-black text-slate-800 truncate">
-                                  {o.ticket.schedule.vehicleName} ({o.ticket.schedule.vehicleCode})
-                                </p>
-                                <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">
-                                  {o.ticket.schedule.route.originCode} ➔ {o.ticket.schedule.route.destinationCode} • {o.passengerName}
-                                </p>
-                              </div>
-                              <div>
-                                <span
-                                  className={`text-[9px] px-2 py-0.5 font-extrabold rounded-full shrink-0 ${
-                                    isBoarded
-                                      ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                                      : "bg-amber-50 text-amber-600 border border-amber-100"
-                                  }`}
-                                >
-                                  {isBoarded ? "BOARDED" : "PAID"}
-                                </span>
-                              </div>
-                            </button>
-                            <button
-                              onClick={(e) => handleDeleteTicket(o.id, e)}
-                              title="Hapus Tiket"
-                              className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer shrink-0"
-                            >
-                              <TrashIcon size={16} />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">
-                      Kode Order atau Kode Tiket
-                    </label>
-                    <input
-                      type="text"
-                      value={manualCode}
-                      onChange={(e) => setManualCode(e.target.value)}
-                      placeholder="Contoh: mock-order-abcdef"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
-                    />
+                                {isBoarded ? "BOARDED" : "PAID"}
+                              </span>
+                            </div>
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteTicket(o.id, e)}
+                            title="Hapus Tiket"
+                            className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+                          >
+                            <TrashIcon size={16} />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                    💡 Tips: Jika Anda menggunakan tab ini, salin ID dari riwayat pembelian tiket Anda dan masukkan di atas.
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Search & Verification Panel & Boarding Pass */}
+          <div className="lg:col-span-7 flex flex-col items-center w-full">
+            {/* 1. SEARCH FORM (When no ticket is selected) */}
+            {!selectedOrder && (
+              <div className="w-full bg-white rounded-3xl border border-slate-100 p-8 shadow-xl shadow-slate-100/50 no-print animate-scale-in">
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <TicketIcon size={32} />
+                  </div>
+                  <h2 className="text-xl font-black text-slate-800">Verifikasi Tiket Penumpang</h2>
+                  <p className="text-sm text-slate-400 mt-2 font-medium">
+                    Masukkan kode order atau kode tiket penumpang untuk memeriksa validitas dan melakukan konfirmasi boarding manual.
                   </p>
                 </div>
-              )}
-            </div>
 
-            {selectedOrder && (
-              <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-xl shadow-slate-100/50 space-y-4">
-                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                  Detail Tiket Terpilih
-                </h3>
-                <div className="grid grid-cols-2 gap-4 text-xs font-bold">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSearchTicket();
+                  }}
+                  className="space-y-4"
+                >
                   <div>
-                    <p className="text-slate-400">Penumpang</p>
-                    <p className="text-slate-800 mt-0.5">{selectedOrder.passengerName}</p>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">
+                      Kode Order / ID Tiket
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={manualCode}
+                        onChange={(e) => setManualCode(e.target.value)}
+                        placeholder="Contoh: mock-order-abcdef atau mock-ticket-..."
+                        className="w-full pl-4 pr-24 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner"
+                      />
+                      <button
+                        type="submit"
+                        className="absolute right-2 top-1.5 bottom-1.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      >
+                        Verifikasi
+                      </button>
+                    </div>
+                  </div>
+                </form>
+
+                <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                  <p className="text-xs text-slate-400 font-semibold leading-relaxed">
+                    💡 Cara Penggunaan: Klik salah satu tiket aktif di panel kiri atau masukkan ID tiket / order penumpang secara langsung di atas.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 2. VERIFICATION CONFIRMATION PANEL (When ticket is selected but NOT boarded yet) */}
+            {selectedOrder && boardingStatus !== "Boarded" && (
+              <div className="w-full bg-white rounded-3xl border border-slate-100 p-8 shadow-xl shadow-slate-100/50 no-print animate-scale-in space-y-6">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <span className="text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-100 px-3 py-1 font-extrabold rounded-full uppercase tracking-wider">
+                      ✓ Tiket Valid (Siap Boarding)
+                    </span>
+                    <h2 className="text-xl font-black text-slate-800 mt-2">Konfirmasi Boarding Penumpang</h2>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedOrder(null);
+                      setManualCode("");
+                    }}
+                    className="text-xs font-extrabold text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    Batal / Cari Lain
+                  </button>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 grid grid-cols-2 gap-y-4 gap-x-2 text-xs font-bold">
+                  <div>
+                    <p className="text-slate-400">Nama Penumpang</p>
+                    <p className="text-slate-800 text-sm mt-0.5 uppercase">{selectedOrder.passengerName}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400">NIK NIK</p>
-                    <p className="text-slate-800 mt-0.5 font-mono">{selectedOrder.passengerIdNumber}</p>
+                    <p className="text-slate-400">NIK / Nomor Identitas</p>
+                    <p className="text-slate-800 text-sm mt-0.5 font-mono">{selectedOrder.passengerIdNumber}</p>
                   </div>
                   <div>
-                    <p className="text-slate-400">Kendaraan</p>
-                    <p className="text-slate-800 mt-0.5">
+                    <p className="text-slate-400">Armada / No. Kendaraan</p>
+                    <p className="text-slate-800 text-sm mt-0.5">
                       {selectedOrder.ticket.schedule.vehicleName} ({selectedOrder.ticket.schedule.vehicleCode})
                     </p>
                   </div>
                   <div>
                     <p className="text-slate-400">Nomor Kursi</p>
-                    <p className="text-blue-600 mt-0.5 uppercase">
-                      {selectedOrder.ticket.seatNumber} ({selectedOrder.ticket.seatClass})
+                    <p className="text-blue-600 text-sm mt-0.5 uppercase font-black">
+                      {selectedOrder.ticket.seatNumber} ({selectedOrder.ticket.seatClass.toUpperCase()})
+                    </p>
+                  </div>
+                  <div className="col-span-2 border-t border-slate-200/60 pt-3 mt-1">
+                    <p className="text-slate-400">Rute Perjalanan</p>
+                    <p className="text-slate-800 text-sm mt-0.5 flex items-center gap-1.5">
+                      <span className="font-extrabold">{selectedOrder.ticket.schedule.route.origin} ({selectedOrder.ticket.schedule.route.originCode})</span>
+                      <span className="text-slate-400">➔</span>
+                      <span className="font-extrabold">{selectedOrder.ticket.schedule.route.destination} ({selectedOrder.ticket.schedule.route.destinationCode})</span>
                     </p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-slate-400">Rute Perjalanan</p>
-                    <p className="text-slate-800 mt-0.5 flex items-center gap-1">
-                      <span>{selectedOrder.ticket.schedule.route.origin}</span>
-                      <span className="text-slate-300">➔</span>
-                      <span>{selectedOrder.ticket.schedule.route.destination}</span>
-                    </p>
+                    <p className="text-slate-400">ID Pemesanan</p>
+                    <p className="text-slate-800 font-mono mt-0.5">{selectedOrder.id}</p>
                   </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={handleConfirmBoarding}
+                    disabled={isScanning}
+                    className={`w-full py-4 rounded-2xl text-sm font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
+                      isScanning
+                        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                        : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/10 hover:shadow-emerald-600/20"
+                    }`}
+                  >
+                    {isScanning ? (
+                      <>
+                        <LoaderIcon size={16} className="animate-spin" />
+                        <span>Sedang Memproses Boarding...</span>
+                      </>
+                    ) : (
+                      <span>Konfirmasi Keberangkatan (Boarding)</span>
+                    )}
+                  </button>
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Right Column: Scanner Mockup & Boarding Pass (print scope) */}
-          <div className="lg:col-span-7 flex flex-col items-center">
-            {/* NO-PRINT SCANNER MACHINE UI */}
-            {selectedOrder && boardingStatus !== "Boarded" && (
-              <div className="w-full max-w-md bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl p-6 relative overflow-hidden flex flex-col items-center text-center no-print">
-                {/* Visual Camera/Scanner Screen */}
-                <div className="w-full aspect-[4/3] rounded-2xl bg-black border border-slate-800 relative flex flex-col items-center justify-center p-4 overflow-hidden mb-6 shadow-inner">
-                  {/* Glowing camera lens */}
-                  <div className="absolute top-3 w-3 h-3 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></div>
-                  </div>
-
-                  {/* Dynamic States */}
-                  {isScanning ? (
-                    <>
-                      {/* Pulsing Target Bracket */}
-                      <div className="w-40 h-40 border-2 border-emerald-500/30 rounded-3xl flex items-center justify-center relative animate-pulse">
-                        <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-emerald-500 rounded-tl-xl"></div>
-                        <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-emerald-500 rounded-tr-xl"></div>
-                        <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-emerald-500 rounded-bl-xl"></div>
-                        <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-emerald-500 rounded-br-xl"></div>
-
-                        {/* Simulated Barcode */}
-                        <div className="w-28 flex gap-1 justify-center items-center opacity-40">
-                          {[2, 4, 1, 3, 2, 4, 1, 2, 3, 1, 4, 2].map((h, i) => (
-                            <div key={i} className="bg-emerald-500 h-16" style={{ width: `${h}px` }}></div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Scanning Laser Line */}
-                      <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-lg shadow-emerald-400/50 animate-scanner-laser z-10"></div>
-
-                      <p className="text-emerald-500 text-xs font-mono font-bold tracking-wider mt-4 animate-pulse uppercase">
-                        MEMBACA DATA TIKET...
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      {/* Idle Scan Bracket */}
-                      <div className="w-40 h-40 border-2 border-blue-500/20 rounded-3xl flex items-center justify-center relative">
-                        <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-blue-500/60 rounded-tl-xl"></div>
-                        <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-blue-500/60 rounded-tr-xl"></div>
-                        <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-blue-500/60 rounded-bl-xl"></div>
-                        <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-blue-500/60 rounded-br-xl"></div>
-
-                        {/* Scan helper QR icon placeholder */}
-                        <TicketIcon size={48} className="text-blue-500/40" />
-                      </div>
-
-                      <p className="text-slate-400 text-xs font-mono tracking-widest mt-4 uppercase">
-                        TAP TIKET DI SINI
-                      </p>
-                    </>
-                  )}
-
-                  {/* Glass shimmer overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 pointer-events-none"></div>
-                </div>
-
-                <h3 className="text-white font-extrabold text-base mb-1">
-                  Gerbang Boarding Simulator
-                </h3>
-                <p className="text-slate-500 text-xs font-medium mb-6">
-                  Posisikan e-tiket Anda di area pindaian kamera di bawah ini untuk Check-In otomatis.
-                </p>
-
-                <button
-                  onClick={handleStartScan}
-                  disabled={isScanning}
-                  className={`w-full py-3.5 rounded-2xl text-sm font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
-                    isScanning
-                      ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                      : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/10 hover:shadow-emerald-500/20"
-                  }`}
-                >
-                  {isScanning ? (
-                    <>
-                      <LoaderIcon size={16} />
-                      <span>Sedang Memverifikasi...</span>
-                    </>
-                  ) : (
-                    <span>Mulai Check-In (Scan Tiket)</span>
-                  )}
-                </button>
-              </div>
-            )}
-
-            {/* If no ticket selected (no-print) */}
-            {!selectedOrder && (
-              <div className="w-full text-center py-16 px-6 bg-white rounded-3xl border border-slate-100 shadow-xl no-print">
-                <TicketIcon size={64} className="text-slate-300 mx-auto mb-4" />
-                <h3 className="text-lg font-black text-slate-800">Simulator Check-In Belum Siap</h3>
-                <p className="text-slate-400 text-sm mt-2 max-w-sm mx-auto leading-relaxed">
-                  Pilih salah satu tiket perjalanan yang aktif di panel kiri untuk memulai proses pemindaian dan boarding check-in.
-                </p>
-              </div>
-            )}
-
-            {/* BOARDING PASS WRAPPER (Printable when boardingStatus === "Boarded") */}
+            {/* 3. SUCCESS BOARDING PASS VIEW (When ticket is selected and boarded) */}
             {selectedOrder && boardingStatus === "Boarded" && (
               <div className="w-full flex flex-col items-center space-y-6">
                 
@@ -672,24 +639,35 @@ export default function BoardingPage() {
                   <p className="text-emerald-600 text-xs font-semibold mt-1">
                     Boarding status telah diperbarui. Silakan cetak boarding pass Anda.
                   </p>
-                  <div className="flex gap-3 w-full mt-4">
+                  <div className="flex flex-col gap-2 w-full mt-4">
                     <button
                       onClick={handlePrintBoardingPass}
-                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black tracking-wider rounded-xl transition-all shadow-md cursor-pointer"
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black tracking-wider rounded-xl transition-all shadow-md cursor-pointer"
                     >
                       🖨️ Cetak Boarding Pass
                     </button>
-                    {orders.length > 1 && (
+                    <div className="flex gap-2 w-full">
                       <button
                         onClick={() => {
-                          const nextIdx = (orders.findIndex(o => o.id === selectedOrder.id) + 1) % orders.length;
-                          setSelectedOrder(orders[nextIdx]);
+                          setSelectedOrder(null);
+                          setManualCode("");
                         }}
-                        className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black rounded-xl transition-all cursor-pointer"
+                        className="flex-1 py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-black rounded-xl transition-all cursor-pointer"
                       >
-                        Berikutnya
+                        Verifikasi Tiket Lain
                       </button>
-                    )}
+                      {orders.length > 0 && (
+                        <button
+                          onClick={() => {
+                            setSelectedOrder(orders[0]);
+                            setManualCode(orders[0].id);
+                          }}
+                          className="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black rounded-xl transition-all cursor-pointer"
+                        >
+                          Tiket Aktif Berikutnya
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
