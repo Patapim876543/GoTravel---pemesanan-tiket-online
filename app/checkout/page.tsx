@@ -159,16 +159,13 @@ function CheckoutForm() {
           }
           setSeats(mockSeats);
         } else {
-          // 1. Fetch schedule detail (using the schedules list query or a specific schedule API)
-          const schedulesList = await apiRequest<any[]>("/api/schedules");
-          const matchedSch = schedulesList.find((s) => s.id === scheduleId);
-          if (matchedSch) {
-            setSchedule(matchedSch);
-          }
-
-          // 2. Fetch seats map from API /api/tickets/seats/{scheduleId}
+          // 1. Fetch seats map from API /api/tickets/seats/{scheduleId}
           const seatData = await apiRequest<any>(`/api/tickets/seats/${scheduleId}`);
           
+          if (seatData && seatData.schedule) {
+            setSchedule(seatData.schedule);
+          }
+
           let seatsObj: any = null;
           if (seatData) {
             if (seatData.data && typeof seatData.data === "object") {
@@ -227,6 +224,73 @@ function CheckoutForm() {
     setSelectedTicket(seat === selectedTicket ? null : seat);
   };
 
+  // Group seats by row number
+  const getGroupedRows = () => {
+    const rowMap: Record<number, Record<string, SeatTicket>> = {};
+    
+    seats.forEach((seat) => {
+      const cleanNum = seat.seatNumber.toUpperCase().replace(/^[EXV]/, "");
+      const match = cleanNum.match(/^(\d+)([A-D])$/);
+      if (match) {
+        const rowNum = parseInt(match[1], 10);
+        const letter = match[2];
+        if (!rowMap[rowNum]) {
+          rowMap[rowNum] = {};
+        }
+        rowMap[rowNum][letter] = seat;
+      } else {
+        // Fallback for seats with abnormal codes
+        const rowNum = 1;
+        const letter = seat.seatNumber.substring(seat.seatNumber.length - 1).toUpperCase();
+        if (!rowMap[rowNum]) {
+          rowMap[rowNum] = {};
+        }
+        rowMap[rowNum][letter] = seat;
+      }
+    });
+
+    // Get sorted row numbers
+    return Object.keys(rowMap)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map((rowNum) => ({
+        rowNum,
+        seatsInRow: rowMap[rowNum],
+      }));
+  };
+
+  const renderSeatButton = (seat?: SeatTicket) => {
+    if (!seat) {
+      return <div className="w-11 h-11" key={Math.random()}></div>;
+    }
+    const isSelected = selectedTicket?.id === seat.id;
+    const isBooked = seat.status === "dipesan";
+    const cleanNum = seat.seatNumber.toUpperCase().replace(/^[EXV]/, "");
+    
+    return (
+      <button
+        key={seat.id}
+        type="button"
+        onClick={() => handleSeatClick(seat)}
+        disabled={isBooked}
+        className={`w-11 h-11 rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all relative ${
+          isBooked
+            ? "bg-slate-200/80 border border-slate-200 text-slate-400 cursor-not-allowed"
+            : isSelected
+            ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+            : "bg-white border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-600 cursor-pointer shadow-sm"
+        }`}
+      >
+        <span>{cleanNum}</span>
+        {!isBooked && !isSelected && (
+          <span className="text-[7px] text-slate-400 font-semibold absolute bottom-1 leading-none">
+            {Number(seat.price) > 1000 ? `${Number(seat.price) / 1000}k` : seat.price}
+          </span>
+        )}
+      </button>
+    );
+  };
+
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -250,7 +314,7 @@ function CheckoutForm() {
       ? (selectedCustomer ? Number(selectedCustomer.balance) : 0)
       : balance;
 
-    if (checkBalance < selectedTicket.price) {
+    if (checkBalance < Number(selectedTicket.price)) {
       showToast(
         user && user.role !== "user"
           ? "Saldo customer terpilih tidak mencukupi."
@@ -278,7 +342,7 @@ function CheckoutForm() {
             id: selectedTicket.id,
             seatNumber: selectedTicket.seatNumber,
             seatClass: selectedTicket.seatClass,
-            price: selectedTicket.price,
+            price: Number(selectedTicket.price),
             schedule: {
               vehicleName: schedule?.vehicleName || "Kendaraan",
               vehicleCode: schedule?.vehicleCode || "TR-001",
@@ -371,7 +435,26 @@ function CheckoutForm() {
     <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
       
       {/* Title */}
-      <h2 className="text-2xl font-bold text-slate-800 mb-8">Pemesanan & Pemilihan Kursi</h2>
+      <h2 className="text-2xl font-bold text-slate-800 mb-3">Pemesanan & Pemilihan Kursi</h2>
+
+      {/* Transaction Mode Banner */}
+      {scheduleId.startsWith("mock-") ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-8 text-amber-800 flex items-start gap-3 shadow-sm animate-fade-in">
+          <span className="text-lg">💡</span>
+          <div className="text-xs font-medium leading-relaxed">
+            <p className="font-bold text-amber-900 text-sm">Mode Simulasi (Demo Fallback)</p>
+            <p className="mt-0.5">Rute & tanggal yang Anda pilih tidak memiliki jadwal aktif di database. Transaksi ini disimpan secara lokal di browser Anda (tidak terdaftar di database petugas).</p>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 mb-8 text-emerald-800 flex items-start gap-3 shadow-sm animate-fade-in">
+          <span className="text-lg">✅</span>
+          <div className="text-xs font-medium leading-relaxed">
+            <p className="font-bold text-emerald-900 text-sm">Mode Transaksi Riil (Database)</p>
+            <p className="mt-0.5">Pembelian tiket ini akan dicatat langsung ke database server, memotong saldo akun secara real-time, dan terhubung langsung ke boarding scanner petugas.</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
@@ -506,7 +589,7 @@ function CheckoutForm() {
               <div className="flex justify-between items-center text-sm text-slate-600">
                 <span>Harga Kursi ({selectedClass || "All"} Class)</span>
                 <span className="font-semibold text-slate-800">
-                  {selectedTicket ? formatRupiah(selectedTicket.price) : "Pilih kursi..."}
+                  {selectedTicket ? formatRupiah(Number(selectedTicket.price)) : "Pilih kursi..."}
                 </span>
               </div>
               <div className="flex justify-between items-center text-sm text-slate-600 border-t border-slate-200/50 pt-2">
@@ -517,7 +600,7 @@ function CheckoutForm() {
                 </span>
               </div>
               
-              {selectedTicket && checkBalance < selectedTicket.price && (
+              {selectedTicket && checkBalance < Number(selectedTicket.price) && (
                 <div className="bg-rose-50 border border-rose-100 text-rose-800 p-3.5 rounded-xl text-xs font-semibold mt-2 space-y-2.5">
                   <p>Peringatan: Saldo {user && user.role !== "user" ? "customer" : "Anda"} tidak mencukupi untuk melakukan transaksi ini.</p>
                   {user && user.role === "user" && (
@@ -537,7 +620,7 @@ function CheckoutForm() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={submitting || !selectedTicket || checkBalance < selectedTicket.price}
+              disabled={submitting || !selectedTicket || checkBalance < Number(selectedTicket.price)}
               className="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white disabled:text-slate-400 font-semibold rounded-xl transition-all shadow-md shadow-blue-500/15 disabled:shadow-none flex items-center justify-center gap-2 cursor-pointer"
             >
               {submitting ? (
@@ -590,34 +673,25 @@ function CheckoutForm() {
                   Tidak ada data kursi tersedia untuk kelas ini.
                 </div>
               ) : (
-                <div className="grid grid-cols-4 gap-3 max-w-[280px] mx-auto py-4">
-                  {seats.map((seat) => {
-                    const isSelected = selectedTicket?.id === seat.id;
-                    const isBooked = seat.status === "dipesan";
-
-                    return (
-                      <button
-                        key={seat.id}
-                        type="button"
-                        onClick={() => handleSeatClick(seat)}
-                        disabled={isBooked}
-                        className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center text-xs font-bold transition-all relative ${
-                          isBooked
-                            ? "bg-slate-200/80 border border-slate-200 text-slate-400 cursor-not-allowed"
-                            : isSelected
-                            ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
-                            : "bg-white border border-slate-200 hover:border-blue-300 text-slate-700 hover:text-blue-600 cursor-pointer shadow-sm"
-                        }`}
-                      >
-                        <span>{seat.seatNumber}</span>
-                        {!isBooked && !isSelected && (
-                          <span className="text-[7px] text-slate-400 font-semibold absolute bottom-1 leading-none">
-                            {seat.price > 1000 ? `${seat.price / 1000}k` : seat.price}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                <div className="space-y-3 max-w-[280px] mx-auto py-4">
+                  {getGroupedRows().map(({ rowNum, seatsInRow }) => (
+                    <div key={rowNum} className="flex items-center justify-center gap-2">
+                      {/* Seat A */}
+                      {renderSeatButton(seatsInRow["A"])}
+                      {/* Seat B */}
+                      {renderSeatButton(seatsInRow["B"])}
+                      
+                      {/* Aisle Row Indicator */}
+                      <div className="w-8 text-center text-xs font-bold text-slate-400 font-mono">
+                        {rowNum}
+                      </div>
+                      
+                      {/* Seat C */}
+                      {renderSeatButton(seatsInRow["C"])}
+                      {/* Seat D */}
+                      {renderSeatButton(seatsInRow["D"])}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -627,7 +701,7 @@ function CheckoutForm() {
               <div className="w-full border-t border-slate-100 pt-4 flex justify-between items-center text-sm font-semibold">
                 <span className="text-slate-500">Kursi Dipilih</span>
                 <span className="px-3.5 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 font-bold">
-                  {selectedTicket.seatNumber} ({selectedTicket.seatClass.toUpperCase()})
+                  {selectedTicket.seatNumber.toUpperCase().replace(/^[EXV]/, "")} ({selectedTicket.seatClass.toUpperCase()})
                 </span>
               </div>
             )}

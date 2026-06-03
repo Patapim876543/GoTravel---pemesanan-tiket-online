@@ -448,7 +448,7 @@ export default function BoardingPage() {
                   <div className="max-h-[360px] overflow-y-auto pr-1 space-y-2">
                     {orders.map((o) => {
                       const isSelected = selectedOrder?.id === o.id;
-                      const isKereta = o.ticket.schedule.route.transportType === "kereta";
+                      const isKereta = o.ticket?.schedule?.route?.transportType === "kereta";
                       const isBoarded =
                         (typeof window !== "undefined"
                           ? JSON.parse(localStorage.getItem("local_boarding_status") || "{}")[
@@ -481,10 +481,10 @@ export default function BoardingPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-black text-slate-800 truncate">
-                                {o.ticket.schedule.vehicleName} ({o.ticket.schedule.vehicleCode})
+                                {o.ticket?.schedule?.vehicleName || "Kendaraan"} ({o.ticket?.schedule?.vehicleCode || "-"})
                               </p>
                               <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">
-                                {o.ticket.schedule.route.originCode} ➔ {o.ticket.schedule.route.destinationCode} • {o.passengerName}
+                                {o.ticket?.schedule?.route?.originCode || "-"} ➔ {o.ticket?.schedule?.route?.destinationCode || "-"} • {o.passengerName}
                               </p>
                             </div>
                             <div>
@@ -602,26 +602,30 @@ export default function BoardingPage() {
                   <div>
                     <p className="text-slate-400">Armada / No. Kendaraan</p>
                     <p className="text-slate-800 text-sm mt-0.5">
-                      {selectedOrder.ticket.schedule.vehicleName} ({selectedOrder.ticket.schedule.vehicleCode})
+                      {selectedOrder.ticket?.schedule?.vehicleName || "Kendaraan"} ({selectedOrder.ticket?.schedule?.vehicleCode || "-"})
                     </p>
                   </div>
                   <div>
                     <p className="text-slate-400">Nomor Kursi</p>
                     <p className="text-blue-600 text-sm mt-0.5 uppercase font-black">
-                      {selectedOrder.ticket.seatNumber} ({selectedOrder.ticket.seatClass.toUpperCase()})
+                      {selectedOrder.ticket?.seatNumber || "-"} ({selectedOrder.ticket?.seatClass?.toUpperCase() || "-"})
                     </p>
                   </div>
                   <div className="col-span-2 border-t border-slate-200/60 pt-3 mt-1">
                     <p className="text-slate-400">Rute Perjalanan</p>
                     <p className="text-slate-800 text-sm mt-0.5 flex items-center gap-1.5">
-                      <span className="font-extrabold">{selectedOrder.ticket.schedule.route.origin} ({selectedOrder.ticket.schedule.route.originCode})</span>
+                      <span className="font-extrabold">{selectedOrder.ticket?.schedule?.route?.origin || "-"} ({selectedOrder.ticket?.schedule?.route?.originCode || "-"})</span>
                       <span className="text-slate-400">➔</span>
-                      <span className="font-extrabold">{selectedOrder.ticket.schedule.route.destination} ({selectedOrder.ticket.schedule.route.destinationCode})</span>
+                      <span className="font-extrabold">{selectedOrder.ticket?.schedule?.route?.destination || "-"} ({selectedOrder.ticket?.schedule?.route?.destinationCode || "-"})</span>
                     </p>
                   </div>
                   <div className="col-span-2">
                     <p className="text-slate-400">Kode Pemesanan (Order Code)</p>
                     <p className="text-slate-800 font-mono mt-0.5">{selectedOrder.orderCode || selectedOrder.order_code || selectedOrder.id}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-slate-400">ID Tiket (Ticket ID)</p>
+                    <p className="text-slate-800 font-mono text-xs select-all mt-0.5 break-all">{selectedOrder.ticket?.id || "-"}</p>
                   </div>
                 </div>
 
@@ -710,7 +714,7 @@ export default function BoardingPage() {
                       <span className="text-lg font-black tracking-widest print:text-black">BOARDING PASS</span>
                     </div>
                     <span className="text-[10px] font-bold opacity-75 uppercase tracking-wider print:text-black">
-                      {selectedOrder.ticket.schedule.route.transportType === "kereta" ? "KA-BOARDING" : "FLIGHT-BOARDING"}
+                      {selectedOrder.ticket?.schedule?.route?.transportType === "kereta" ? "KA-BOARDING" : "FLIGHT-BOARDING"}
                     </span>
                   </div>
 
@@ -720,15 +724,15 @@ export default function BoardingPage() {
                     <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                       <div>
                         <h3 className="text-2xl font-black text-slate-800 print:text-black">
-                          {selectedOrder.ticket.schedule.route.originCode}
+                          {selectedOrder.ticket?.schedule?.route?.originCode || "-"}
                         </h3>
                         <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                          {selectedOrder.ticket.schedule.route.origin}
+                          {selectedOrder.ticket?.schedule?.route?.origin || "-"}
                         </p>
                       </div>
 
                       <div className="flex flex-col items-center">
-                        {selectedOrder.ticket.schedule.route.transportType === "kereta" ? (
+                        {selectedOrder.ticket?.schedule?.route?.transportType === "kereta" ? (
                           <TrainIcon size={24} className="text-blue-600 print:text-black" />
                         ) : (
                           <PlaneIcon size={24} className="text-blue-600 print:text-black" />
@@ -738,10 +742,10 @@ export default function BoardingPage() {
 
                       <div className="text-right">
                         <h3 className="text-2xl font-black text-slate-800 print:text-black">
-                          {selectedOrder.ticket.schedule.route.destinationCode}
+                          {selectedOrder.ticket?.schedule?.route?.destinationCode || "-"}
                         </h3>
                         <p className="text-xs text-slate-400 font-semibold mt-0.5">
-                          {selectedOrder.ticket.schedule.route.destination}
+                          {selectedOrder.ticket?.schedule?.route?.destination || "-"}
                         </p>
                       </div>
                     </div>
@@ -755,31 +759,39 @@ export default function BoardingPage() {
                       <div>
                         <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Nomor Kursi</p>
                         <p className="text-sm text-blue-600 mt-0.5 uppercase font-black print:text-black">
-                          {selectedOrder.ticket.seatNumber} ({selectedOrder.ticket.seatClass.toUpperCase()})
+                          {selectedOrder.ticket?.seatNumber || "-"} ({selectedOrder.ticket?.seatClass?.toUpperCase() || "-"})
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Kendaraan / No</p>
                         <p className="text-sm mt-0.5 print:text-black">
-                          {selectedOrder.ticket.schedule.vehicleName}
+                          {selectedOrder.ticket?.schedule?.vehicleName || "Kendaraan"}
                         </p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Code: {selectedOrder.ticket.schedule.vehicleCode}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Code: {selectedOrder.ticket?.schedule?.vehicleCode || "-"}</p>
                       </div>
                       <div>
                         <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Waktu Keberangkatan</p>
                         <p className="text-sm mt-0.5 print:text-black">
-                          {formatDateTime(selectedOrder.ticket.schedule.departureTime)}
+                          {formatDateTime(selectedOrder.ticket?.schedule?.departureTime)}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Gerbang (Gate)</p>
                         <p className="text-sm text-indigo-600 mt-0.5 print:text-black">
-                          {selectedOrder.ticket.schedule.route.transportType === "kereta" ? "Peron 3" : "Gate 2B"}
+                          {selectedOrder.ticket?.schedule?.route?.transportType === "kereta" ? "Peron 3" : "Gate 2B"}
                         </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">ID Pemesanan</p>
-                        <p className="text-sm mt-0.5 font-mono text-slate-600 print:text-black">{selectedOrder.id}</p>
+                        <p className="text-[11px] mt-0.5 font-mono text-slate-600 print:text-black break-all">{selectedOrder.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">Kode Order</p>
+                        <p className="text-[11px] mt-0.5 font-mono text-slate-600 print:text-black break-all">{selectedOrder.orderCode || selectedOrder.order_code || "-"}</p>
+                      </div>
+                      <div className="col-span-2 border-t border-slate-100 pt-2 mt-1">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-extrabold">ID Tiket (Ticket ID)</p>
+                        <p className="text-[10px] mt-0.5 font-mono text-slate-500 print:text-black break-all select-all">{selectedOrder.ticket?.id || "-"}</p>
                       </div>
                     </div>
 

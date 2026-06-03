@@ -258,10 +258,32 @@ function TicketsSearchResult() {
   };
 
   const sortedResults = getSortedSchedules();
+  const hasMocks = sortedResults.some((sch) => (sch.scheduleId || "").startsWith("mock-"));
 
   return (
     <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
       
+      {/* Fallback Mock schedules banner */}
+      {hasMocks && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-8 text-amber-800 flex items-start gap-3 shadow-sm animate-fade-in">
+          <span className="text-lg">💡</span>
+          <div className="text-xs font-medium leading-relaxed">
+            <p className="font-bold text-amber-900 text-sm">Menampilkan Jadwal Simulasi (Demo Fallback)</p>
+            <p className="mt-0.5">
+              Tidak ada jadwal aktif di database untuk rute & tanggal ini. Pembelian tiket dari jadwal simulasi ini hanya akan disimpan di browser Anda (lokal) dan <strong>tidak terdaftar di database petugas</strong>.
+            </p>
+            <p className="mt-1">
+              Agar tiket tercatat di database real petugas, silakan cari rute & tanggal yang memiliki jadwal aktif (contoh: 
+              {transportType === "kereta" ? (
+                <> rute <strong>Jakarta ke Bandung</strong> tanggal <strong>12 Juni 2026</strong> atau <strong>Surabaya ke Jakarta</strong> tanggal <strong>3 Juni 2026</strong></>
+              ) : (
+                <> rute <strong>Surabaya ke Jakarta</strong> tanggal <strong>2 Juni 2026</strong></>
+              )}), atau masuk ke Panel Admin untuk membuat jadwal perjalanan baru.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header Info Bar */}
       <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4 sm:p-6 mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
