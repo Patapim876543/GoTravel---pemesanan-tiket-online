@@ -253,7 +253,8 @@ export default function AdminPage() {
 
   const handleToggleBoarding = async (passengerId: string) => {
     const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
-    const currentStatus = storedBoarding[passengerId] || "Booked";
+    const passenger = manifestPassengers.find(p => p.id === passengerId);
+    const currentStatus = passenger?.boardingStatus || storedBoarding[passengerId] || "Booked";
     const newStatus = currentStatus === "Boarded" ? "Booked" : "Boarded";
     storedBoarding[passengerId] = newStatus;
     localStorage.setItem("local_boarding_status", JSON.stringify(storedBoarding));

@@ -174,7 +174,8 @@ export default function BoardingPage() {
   useEffect(() => {
     if (selectedOrder) {
       const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
-      setBoardingStatus(storedBoarding[selectedOrder.id] || "Booked");
+      const bStatus = selectedOrder.boardingStatus || selectedOrder.boarding_status || storedBoarding[selectedOrder.id] || "Booked";
+      setBoardingStatus(bStatus as "Booked" | "Boarded");
       setScanSuccess(false);
     }
   }, [selectedOrder]);
