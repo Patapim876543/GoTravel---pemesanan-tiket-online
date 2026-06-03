@@ -787,6 +787,18 @@ export default function HistoryPage() {
                       ● {boardingStatus === "Boarded" ? "BOARDED (Sudah Check-In)" : "BOOKED (Belum Check-In)"}
                     </p>
                   </div>
+                  <div className="col-span-2 border-t border-slate-100 pt-2">
+                    <p className="text-slate-400 font-semibold uppercase tracking-wider">ID Pemesanan (Order ID)</p>
+                    <p className="font-mono text-xs text-slate-800 font-bold select-all mt-0.5 bg-slate-50 px-2.5 py-1 rounded border border-slate-200/60 inline-block">
+                      {activeTicket.orderCode || activeTicket.order_code || activeTicket.id}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-slate-400 font-semibold uppercase tracking-wider">ID Tiket (Ticket ID)</p>
+                    <p className="font-mono text-[10px] text-slate-500 select-all mt-0.5 break-all">
+                      {activeTicket.ticket?.id}
+                    </p>
+                  </div>
                 </div>
 
                 {/* QR Code graphic stub (simulated barcode/qr using inline visual styling) */}
@@ -818,7 +830,7 @@ export default function HistoryPage() {
                     <div className="w-[4px] h-full bg-slate-900"></div>
                   </div>
                   <span className="text-[10px] text-slate-400 tracking-widest font-mono uppercase">
-                    {activeTicket.orderCode || activeTicket.order_code || `ORDER-${activeTicket.id.substring(0, 8)}`}
+                    {activeTicket.orderCode || activeTicket.order_code || activeTicket.id.toUpperCase()}
                   </span>
                 </div>
                 <p className="text-[11px] text-center text-slate-400 no-print">
