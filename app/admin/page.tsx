@@ -454,11 +454,13 @@ export default function AdminPage() {
       const sList = await apiRequest<any[]>("/api/schedules");
       setSchedules(sList || []);
 
-      // 4. Fetch All Orders (only if role is admin)
+      // 4. Fetch All Orders (for admin and petugas)
       let oList: any[] = [];
-      if (user?.role === "admin") {
+      if (user?.role && user.role !== "user") {
         try {
-          oList = await apiRequest<any[]>("/api/admin/orders");
+          oList = await apiRequest<any[]>("/api/admin/orders", {
+            params: { limit: 1000 }
+          });
         } catch (err: any) {
           console.warn("Failed to fetch admin orders:", err);
         }
@@ -1084,12 +1086,24 @@ export default function AdminPage() {
     ? `${pathD} L ${points[points.length - 1].x} ${svgHeight - paddingY} L ${points[0].x} ${svgHeight - paddingY} Z`
     : "";
 
+  // Filter by city only (without role filtering) to keep donut chart synchronized across roles
+  const cityFilteredOrders = orders.filter((ord) => {
+    if (activeCity && activeCity !== "Semua Kota") {
+      const origin = ord.ticket?.schedule?.route?.origin || "";
+      const dest = ord.ticket?.schedule?.route?.destination || "";
+      const matchOrigin = origin.toLowerCase().includes(activeCity.toLowerCase());
+      const matchDest = dest.toLowerCase().includes(activeCity.toLowerCase());
+      if (!matchOrigin && !matchDest) return false;
+    }
+    return true;
+  });
+
   // Donut Chart Calculations (Train vs Plane)
-  const trainOrders = filteredOrders.filter(o => {
+  const trainOrders = cityFilteredOrders.filter(o => {
     const type = o.ticket?.schedule?.route?.transportType || o.transportType || "kereta";
     return type === "kereta" && o.status === "paid";
   });
-  const planeOrders = filteredOrders.filter(o => {
+  const planeOrders = cityFilteredOrders.filter(o => {
     const type = o.ticket?.schedule?.route?.transportType || o.transportType || "pesawat";
     return type === "pesawat" && o.status === "paid";
   });
@@ -1209,23 +1223,7 @@ export default function AdminPage() {
                       <p className="text-slate-500 text-sm mt-0.5">Statistik dan data transaksi sistem saat ini</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => {
-                          if (confirm("Apakah Anda yakin ingin menghapus seluruh data simulasi/mock lokal di browser ini? Ini akan membersihkan riwayat tiket offline, saldo tambahan, dan mereset ke data riil database.")) {
-                            localStorage.removeItem("mock_orders");
-                            localStorage.removeItem("mock_topups");
-                            localStorage.removeItem("local_boarding_status");
-                            localStorage.removeItem("local_refund_statuses");
-                            localStorage.removeItem("local_schedule_gates");
-                            showToast("Seluruh data simulasi lokal berhasil dibersihkan!", "success");
-                            loadDashboardData();
-                            fetchBalance();
-                          }
-                        }}
-                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 cursor-pointer transition-all border border-slate-200"
-                      >
-                        <span>🔄 Reset Simulasi</span>
-                      </button>
+
                       <button
                         onClick={() => window.print()}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/10 flex items-center gap-1.5 cursor-pointer transition-all"

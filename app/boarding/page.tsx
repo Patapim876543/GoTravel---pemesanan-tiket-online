@@ -19,6 +19,8 @@ import {
 
 interface OrderItem {
   id: string;
+  orderCode?: string;
+  order_code?: string;
   passengerName: string;
   passengerIdNumber: string;
   passengerPhone: string;
@@ -72,20 +74,22 @@ export default function BoardingPage() {
     if (typeof window !== "undefined") {
       let apiList: any[] = [];
       try {
-        const res = await apiRequest<any>("/api/admin/orders");
+        const res = await apiRequest<any>("/api/admin/orders", {
+          params: { limit: 1000 }
+        });
         const ordersArray = Array.isArray(res) ? res : res.data || [];
         apiList = ordersArray;
       } catch (err: any) {
         console.warn("Failed to fetch real orders from API:", err);
       }
 
-      const stored = localStorage.getItem("mock_orders");
       let mockList: any[] = [];
+      const stored = localStorage.getItem("mock_orders");
       if (stored) {
         try {
           mockList = JSON.parse(stored);
         } catch (e) {
-          console.error("Failed to parse mock orders", e);
+          console.error("Failed to parse mock_orders", e);
         }
       }
 
@@ -126,25 +130,24 @@ export default function BoardingPage() {
     }
   };
 
+  // Generate a mock ticket for demo testing
   const handleGenerateDemoTicket = (type: "kereta" | "pesawat") => {
     if (typeof window !== "undefined") {
       const isKereta = type === "kereta";
-      const randomId = `mock-order-${Math.random().toString(36).substring(2, 9)}`;
-      const randomSeat = `${Math.floor(Math.random() * 8) + 1}${["A", "B", "C", "D"][Math.floor(Math.random() * 4)]}`;
-      
       const newOrder = {
-        id: randomId,
-        passengerName: `Demo Passenger (${isKereta ? "Train" : "Plane"})`,
-        passengerIdNumber: `12345678${Math.floor(100000 + Math.random() * 900000)}`,
-        passengerPhone: `081234${Math.floor(100000 + Math.random() * 900000)}`,
+        id: `mock-order-${Math.random().toString(36).substring(2, 9)}`,
+        passengerName: `Demo Passenger ${Math.floor(Math.random() * 100) + 1}`,
+        passengerIdNumber: `35780${Math.floor(10000000000 + Math.random() * 90000000000)}`,
+        passengerPhone: `0812${Math.floor(10000000 + Math.random() * 90000000)}`,
         status: "paid",
         createdAt: new Date().toISOString(),
         ticket: {
-          id: `mock-ticket-${randomId}`,
-          seatNumber: randomSeat,
-          seatClass: isKereta ? "ekonomi" : "vip",
-          price: isKereta ? 150000 : 1720000,
+          id: `mock-ticket-${Math.random().toString(36).substring(2, 9)}`,
+          seatNumber: `${Math.floor(Math.random() * 10) + 1}${["A", "B", "C", "D"][Math.floor(Math.random() * 4)]}`,
+          seatClass: ["ekonomi", "eksekutif", "vip"][Math.floor(Math.random() * 3)],
+          price: isKereta ? 120000 : 750000,
           schedule: {
+            id: `mock-sch-${type}-${new Date().toISOString().split("T")[0]}-${Math.floor(Math.random() * 10)}`,
             vehicleName: isKereta ? "Argo Bromo Anggrek" : "Garuda Indonesia",
             vehicleCode: isKereta ? "KA-001" : "GA-204",
             departureTime: new Date(Date.now() + 2 * 3600000).toISOString(),
@@ -169,16 +172,6 @@ export default function BoardingPage() {
       loadOrders();
     }
   };
-
-  // Sync boarding status when selected order changes
-  useEffect(() => {
-    if (selectedOrder) {
-      const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
-      const bStatus = selectedOrder.boardingStatus || selectedOrder.boarding_status || storedBoarding[selectedOrder.id] || "Booked";
-      setBoardingStatus(bStatus as "Booked" | "Boarded");
-      setScanSuccess(false);
-    }
-  }, [selectedOrder]);
 
   // Delete ticket from local orders
   const handleDeleteTicket = (id: string, e: React.MouseEvent) => {
@@ -214,6 +207,16 @@ export default function BoardingPage() {
     }
   };
 
+  // Sync boarding status when selected order changes
+  useEffect(() => {
+    if (selectedOrder) {
+      const storedBoarding = JSON.parse(localStorage.getItem("local_boarding_status") || "{}");
+      const bStatus = selectedOrder.boardingStatus || selectedOrder.boarding_status || storedBoarding[selectedOrder.id] || "Booked";
+      setBoardingStatus(bStatus as "Booked" | "Boarded");
+      setScanSuccess(false);
+    }
+  }, [selectedOrder]);
+
   // Web Audio API beep effect
   const playScanBeep = () => {
     try {
@@ -240,16 +243,32 @@ export default function BoardingPage() {
 
   // Search and verify manual code input
   const handleSearchTicket = (codeToSearch?: string) => {
-    const code = (codeToSearch !== undefined ? codeToSearch : manualCode).trim();
-    if (!code) {
+    const rawCode = (codeToSearch !== undefined ? codeToSearch : manualCode).trim();
+    if (!rawCode) {
       showToast("Masukkan kode tiket atau order terlebih dahulu.", "error");
       return;
     }
 
-    const matched = allOrders.find(
-      (o) => o.id.toLowerCase() === code.toLowerCase() || 
-             o.ticket.id.toLowerCase() === code.toLowerCase()
-    );
+    // Clean up all spaces to handle inputs like "ORDER - 25EFEF52"
+    let cleanCode = rawCode.replace(/\s+/g, "");
+    
+    // Clean up prefix "ORDER-" or "order-" case-insensitively
+    if (cleanCode.toLowerCase().startsWith("order-")) {
+      cleanCode = cleanCode.substring(6);
+    }
+
+    const matched = allOrders.find((o) => {
+      const matchId = o.id.toLowerCase() === rawCode.toLowerCase() ||
+                      o.id.toLowerCase().replace(/\s+/g, "").startsWith(cleanCode.toLowerCase());
+      
+      const matchTicketId = o.ticket?.id?.toLowerCase() === rawCode.toLowerCase() ||
+                            o.ticket?.id?.toLowerCase().replace(/\s+/g, "").startsWith(cleanCode.toLowerCase());
+      
+      const matchOrderCode = (o.orderCode && o.orderCode.toLowerCase().replace(/\s+/g, "") === cleanCode.toLowerCase()) ||
+                             (o.order_code && o.order_code.toLowerCase().replace(/\s+/g, "") === cleanCode.toLowerCase());
+      
+      return matchId || matchTicketId || matchOrderCode;
+    });
 
     if (!matched) {
       showToast("Kode tiket atau order tidak ditemukan.", "error");
@@ -480,13 +499,15 @@ export default function BoardingPage() {
                               </span>
                             </div>
                           </button>
-                          <button
-                            onClick={(e) => handleDeleteTicket(o.id, e)}
-                            title="Hapus Tiket"
-                            className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer shrink-0"
-                          >
-                            <TrashIcon size={16} />
-                          </button>
+                          {o.id.startsWith("mock-") && (
+                            <button
+                              onClick={(e) => handleDeleteTicket(o.id, e)}
+                              title="Hapus Tiket"
+                              className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+                            >
+                              <TrashIcon size={16} />
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -599,8 +620,8 @@ export default function BoardingPage() {
                     </p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-slate-400">ID Pemesanan</p>
-                    <p className="text-slate-800 font-mono mt-0.5">{selectedOrder.id}</p>
+                    <p className="text-slate-400">Kode Pemesanan (Order Code)</p>
+                    <p className="text-slate-800 font-mono mt-0.5">{selectedOrder.orderCode || selectedOrder.order_code || selectedOrder.id}</p>
                   </div>
                 </div>
 
@@ -770,7 +791,7 @@ export default function BoardingPage() {
                         ))}
                       </div>
                       <p className="text-[9px] text-slate-400 font-mono tracking-widest mt-2">
-                        *{selectedOrder.id.toUpperCase()}*
+                        *{selectedOrder.orderCode || selectedOrder.order_code || selectedOrder.id.toUpperCase()}*
                       </p>
                     </div>
                   </div>

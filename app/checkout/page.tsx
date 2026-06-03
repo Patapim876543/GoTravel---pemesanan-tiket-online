@@ -82,88 +82,113 @@ function CheckoutForm() {
     loadUsers();
   }, [user]);
 
-  const handleTopUpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = Number(topUpAmount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      showToast("Jumlah top up harus valid.", "error");
-      return;
-    }
 
-    try {
-      const stored = localStorage.getItem("mock_topups");
-      const list = stored ? JSON.parse(stored) : [];
-      list.push({
-        amount: amountNum,
-        date: new Date().toISOString(),
-        description: "Top Up Mandiri via Checkout (Simulasi)"
-      });
-      localStorage.setItem("mock_topups", JSON.stringify(list));
-      
-      showToast(`Top up sebesar ${formatRupiah(amountNum)} berhasil!`, "success");
-      setShowTopUpModal(false);
-      setTopUpAmount("100000");
-      await fetchBalance();
-    } catch (err) {
-      showToast("Gagal melakukan top up.", "error");
-    }
-  };
 
   // Load schedule details and seats map
   useEffect(() => {
     const loadBookingData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch schedule detail (using the schedules list query or a specific schedule API)
-        const schedulesList = await apiRequest<any[]>("/api/schedules");
-        const matchedSch = schedulesList.find((s) => s.id === scheduleId);
-        if (matchedSch) {
-          setSchedule(matchedSch);
-        }
+        const isMockSchedule = scheduleId.startsWith("mock-");
 
-        // 2. Fetch seats map from API /api/tickets/seats/{scheduleId}
-        const seatData = await apiRequest<any>(`/api/tickets/seats/${scheduleId}`);
-        
-        let seatsObj: any = null;
-        if (seatData) {
-          if (seatData.data && typeof seatData.data === "object") {
-            seatsObj = seatData.data.seats || seatData.data.tickets || seatData.data;
-          } else {
-            seatsObj = seatData.seats || seatData.tickets || seatData;
+        if (isMockSchedule) {
+          // Set schedule info manually from mockId format: mock-sch-{type}-{date}-{index}
+          const isKereta = scheduleId.includes("kereta");
+          const vehicle = isKereta
+            ? { name: "Argo Bromo Anggrek", code: "KA-001", price: 150000 }
+            : { name: "Garuda Indonesia", code: "GA-204", price: 850000 };
+          
+          const parts = scheduleId.split("-");
+          const dateVal = parts.slice(3, 6).join("-") || new Date().toISOString().split("T")[0];
+
+          setSchedule({
+            id: scheduleId,
+            vehicleName: vehicle.name,
+            vehicleCode: vehicle.code,
+            departureTime: `${dateVal}T08:00:00.000Z`,
+            arrivalTime: `${dateVal}T14:30:00.000Z`,
+            route: {
+              origin: searchParams.get("origin") || "JAKARTA",
+              destination: searchParams.get("destination") || "SURABAYA",
+              originCode: (searchParams.get("origin") || "JKT").substring(0, 3).toUpperCase(),
+              destinationCode: (searchParams.get("destination") || "SUB").substring(0, 3).toUpperCase(),
+            }
+          });
+
+          // Generate simulated seats
+          const mockSeats: SeatTicket[] = [];
+          const rows = 10;
+          const cols = ["A", "B", "C", "D"];
+          const seatClassVal = (selectedClass || "ekonomi") as any;
+          const priceVal = seatClassVal === "vip" ? vehicle.price * 3 : seatClassVal === "eksekutif" ? vehicle.price * 2 : vehicle.price;
+
+          for (let r = 1; r <= rows; r++) {
+            for (let c = 0; c < cols.length; c++) {
+              const seatNum = `${r}${cols[c]}`;
+              // Make some seats randomly booked to look realistic
+              const isBooked = (r * (c + 1)) % 3 === 0;
+              mockSeats.push({
+                id: `mock-ticket-${scheduleId}-${seatNum}`,
+                seatNumber: seatNum,
+                seatClass: seatClassVal,
+                price: priceVal,
+                status: isBooked ? "dipesan" : "tersedia"
+              });
+            }
           }
-        }
-
-        let rawSeats: any[] = [];
-        if (Array.isArray(seatsObj)) {
-          rawSeats = seatsObj;
-        } else if (seatsObj && typeof seatsObj === "object") {
-          const classKey = selectedClass ? selectedClass.toLowerCase() : "";
-          if (classKey && Array.isArray(seatsObj[classKey])) {
-            rawSeats = seatsObj[classKey].map((s: any) => ({ ...s, seatClass: classKey }));
-          } else {
-            rawSeats = Object.keys(seatsObj).reduce<any[]>((acc, key) => {
-              if (Array.isArray(seatsObj[key])) {
-                const mapped = seatsObj[key].map((s: any) => ({ ...s, seatClass: key }));
-                return acc.concat(mapped);
-              }
-              return acc;
-            }, []);
+          setSeats(mockSeats);
+        } else {
+          // 1. Fetch schedule detail (using the schedules list query or a specific schedule API)
+          const schedulesList = await apiRequest<any[]>("/api/schedules");
+          const matchedSch = schedulesList.find((s) => s.id === scheduleId);
+          if (matchedSch) {
+            setSchedule(matchedSch);
           }
+
+          // 2. Fetch seats map from API /api/tickets/seats/{scheduleId}
+          const seatData = await apiRequest<any>(`/api/tickets/seats/${scheduleId}`);
+          
+          let seatsObj: any = null;
+          if (seatData) {
+            if (seatData.data && typeof seatData.data === "object") {
+              seatsObj = seatData.data.seats || seatData.data.tickets || seatData.data;
+            } else {
+              seatsObj = seatData.seats || seatData.tickets || seatData;
+            }
+          }
+
+          let rawSeats: any[] = [];
+          if (Array.isArray(seatsObj)) {
+            rawSeats = seatsObj;
+          } else if (seatsObj && typeof seatsObj === "object") {
+            const classKey = selectedClass ? selectedClass.toLowerCase() : "";
+            if (classKey && Array.isArray(seatsObj[classKey])) {
+              rawSeats = seatsObj[classKey].map((s: any) => ({ ...s, seatClass: classKey }));
+            } else {
+              rawSeats = Object.keys(seatsObj).reduce<any[]>((acc, key) => {
+                if (Array.isArray(seatsObj[key])) {
+                  const mapped = seatsObj[key].map((s: any) => ({ ...s, seatClass: key }));
+                  return acc.concat(mapped);
+                }
+                return acc;
+              }, []);
+            }
+          }
+
+          const seatList: SeatTicket[] = rawSeats;
+          
+          // Filter seats by the class selected in the search params
+          const classFilteredSeats = selectedClass
+            ? seatList.filter((s) => s && s.seatClass && s.seatClass.toLowerCase() === selectedClass.toLowerCase())
+            : seatList;
+
+          // Sort seats alphabetically/numerically (e.g. 1A, 1B, 2A, 2B)
+          const sorted = [...classFilteredSeats].sort((a, b) =>
+            (a.seatNumber || "").localeCompare(b.seatNumber || "", undefined, { numeric: true, sensitivity: "base" })
+          );
+
+          setSeats(sorted);
         }
-
-        const seatList: SeatTicket[] = rawSeats;
-        
-        // Filter seats by the class selected in the search params
-        const classFilteredSeats = selectedClass
-          ? seatList.filter((s) => s && s.seatClass && s.seatClass.toLowerCase() === selectedClass.toLowerCase())
-          : seatList;
-
-        // Sort seats alphabetically/numerically (e.g. 1A, 1B, 2A, 2B)
-        const sorted = [...classFilteredSeats].sort((a, b) =>
-          (a.seatNumber || "").localeCompare(b.seatNumber || "", undefined, { numeric: true, sensitivity: "base" })
-        );
-
-        setSeats(sorted);
       } catch (err: any) {
         showToast(err.message || "Gagal memuat peta kursi.", "error");
       } finally {
@@ -216,24 +241,68 @@ function CheckoutForm() {
 
     setSubmitting(true);
     try {
-      // Create real order via API POST /api/orders
-      await apiRequest("/api/orders", {
-        method: "POST",
-        body: {
-          ticketId: selectedTicket.id,
+      const isMockTicket = selectedTicket.id.startsWith("mock-ticket-");
+
+      if (isMockTicket) {
+        // Create mock order data
+        const mockOrder = {
+          id: `mock-order-${Math.random().toString(36).substring(2, 9)}`,
           passengerName,
           passengerIdNumber,
           passengerPhone,
+          status: "paid",
           notes: notes || undefined,
-          ...(user && user.role !== "user" ? { buyerUserId } : {})
-        },
-      });
+          createdAt: new Date().toISOString(),
+          ticket: {
+            id: selectedTicket.id,
+            seatNumber: selectedTicket.seatNumber,
+            seatClass: selectedTicket.seatClass,
+            price: selectedTicket.price,
+            schedule: {
+              vehicleName: schedule?.vehicleName || "Kendaraan",
+              vehicleCode: schedule?.vehicleCode || "TR-001",
+              departureTime: schedule?.departureTime || new Date().toISOString(),
+              arrivalTime: schedule?.arrivalTime || new Date().toISOString(),
+              route: {
+                origin: schedule?.route?.origin || "Kota Asal",
+                destination: schedule?.route?.destination || "Kota Tujuan",
+                originCode: schedule?.route?.originCode || "ASL",
+                destinationCode: schedule?.route?.destinationCode || "TJN",
+                transportType: scheduleId.includes("kereta") ? "kereta" : "pesawat"
+              }
+            }
+          }
+        };
 
-      showToast("Pemesanan tiket berhasil diproses!", "success");
-      // Update balance globally
-      await fetchBalance();
-      // Redirect to transaction history page
-      router.push("/history");
+        // Save order to localStorage so it persists in history page
+        const existing = localStorage.getItem("mock_orders");
+        const list = existing ? JSON.parse(existing) : [];
+        list.unshift(mockOrder);
+        localStorage.setItem("mock_orders", JSON.stringify(list));
+
+        showToast("Pemesanan tiket berhasil diproses!", "success");
+        await fetchBalance();
+        router.push("/history");
+      } else {
+        // Create real order via API POST /api/orders
+        await apiRequest("/api/orders", {
+          method: "POST",
+          body: {
+            ticketId: selectedTicket.id,
+            passengerName,
+            passengerIdNumber,
+            passengerPhone,
+            notes: notes || undefined,
+            ...(user && user.role !== "user" ? { buyerUserId } : {})
+          },
+        });
+
+        showToast("Pemesanan tiket berhasil diproses!", "success");
+        // Update balance globally
+        await fetchBalance();
+        // Redirect to transaction history page
+        router.push("/history");
+      }
     } catch (err: any) {
       showToast(err.message || "Gagal melakukan pemesanan tiket.", "error");
     } finally {
@@ -553,8 +622,8 @@ function CheckoutForm() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl max-w-sm w-full p-6 animate-scale-in">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <WalletIcon size={20} className="text-emerald-600" />
-                <span>Top Up Saldo (Simulasi)</span>
+                <WalletIcon size={20} className="text-blue-600" />
+                <span>Informasi Pengisian Saldo</span>
               </h3>
               <button
                 type="button"
@@ -565,48 +634,27 @@ function CheckoutForm() {
               </button>
             </div>
 
-            <form onSubmit={handleTopUpSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-                  Nominal Top Up (Rupiah)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="1000"
-                  value={topUpAmount}
-                  onChange={(e) => setTopUpAmount(e.target.value)}
-                  placeholder="Masukkan nominal"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-sm text-slate-800 font-semibold"
-                />
+            <div className="space-y-4 text-slate-600 text-xs leading-relaxed font-medium">
+              <p>
+                Untuk menjaga keamanan finansial, pengisian saldo (Top Up) akun Anda tidak dapat dilakukan secara mandiri dari aplikasi customer.
+              </p>
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-blue-700 space-y-1">
+                <p className="font-bold flex items-center gap-1">💡 Cara Isi Saldo:</p>
+                <ol className="list-decimal pl-4 space-y-1 mt-1 text-slate-600">
+                  <li>Kunjungi stasiun kereta atau bandara terdekat.</li>
+                  <li>Temui petugas loket pembayaran (Super Admin).</li>
+                  <li>Sebutkan username akun Anda: <strong className="text-blue-700 font-bold font-mono">{user?.username}</strong></li>
+                  <li>Lakukan pembayaran tunai/debit, dan Super Admin akan langsung melakukan Top Up saldo secara real-time ke akun Anda.</li>
+                </ol>
               </div>
-
-              {/* Quick Select Grid */}
-              <div className="grid grid-cols-2 gap-2">
-                {[50000, 100000, 200000, 500000].map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setTopUpAmount(String(amt))}
-                    className={`py-2 px-3 border rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                      topUpAmount === String(amt)
-                        ? "border-emerald-500 bg-emerald-50/50 text-emerald-700"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    {formatRupiah(amt)}
-                  </button>
-                ))}
-              </div>
-
               <button
-                type="submit"
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-all shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer mt-2 text-sm"
+                type="button"
+                onClick={() => setShowTopUpModal(false)}
+                className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all cursor-pointer text-center"
               >
-                <WalletIcon size={16} />
-                <span>Top Up Sekarang</span>
+                Mengerti
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}

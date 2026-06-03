@@ -74,33 +74,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await apiRequest<any>("/api/users/balance");
       const baseBalance = Number(res.balance) || 0;
-
-      // Calculate mock orders total price to simulate deduction locally
-      // Funds for orders with 'paid' or 'pending_refund' are held (deduced)
-      let mockDeduction = 0;
-      let mockTopup = 0;
-      
-      if (typeof window !== "undefined") {
-        // 1. Mock ticket deductions
-        const storedOrders = localStorage.getItem("mock_orders");
-        if (storedOrders) {
-          const list = JSON.parse(storedOrders);
-          mockDeduction = list
-            .filter((ord: any) => ord.status === "paid" || ord.status === "pending_refund")
-            .reduce((sum: number, ord: any) => sum + (ord.ticket?.price || 0), 0);
-        }
-
-        // 2. Mock topups additions
-        const storedTopups = localStorage.getItem("mock_topups");
-        if (storedTopups) {
-          const list = JSON.parse(storedTopups);
-          mockTopup = list.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0);
-        }
-      }
-
-      const finalBalance = Math.max(0, baseBalance - mockDeduction + mockTopup);
-      setBalance(finalBalance);
-      return finalBalance;
+      setBalance(baseBalance);
+      return baseBalance;
     } catch (err) {
       console.error("Gagal mengambil saldo:", err);
       return 0;

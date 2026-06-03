@@ -18,6 +18,8 @@ import {
 
 interface OrderItem {
   id: string;
+  orderCode?: string;
+  order_code?: string;
   passengerName: string;
   passengerIdNumber: string;
   passengerPhone: string;
@@ -90,8 +92,16 @@ export default function HistoryPage() {
       // API call GET /api/orders/my
       const data = await apiRequest<OrderItem[]>("/api/orders/my");
       
+      // Load local mock orders if any (to make custom date bookings show up)
+      let mockList: OrderItem[] = [];
+      let localStatuses: any = {};
       let hiddenIds: string[] = [];
       if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("mock_orders");
+        if (stored) {
+          mockList = JSON.parse(stored);
+        }
+        localStatuses = JSON.parse(localStorage.getItem("local_refund_statuses") || "{}");
         hiddenIds = JSON.parse(localStorage.getItem("hidden_orders") || "[]");
       }
       
@@ -103,11 +113,37 @@ export default function HistoryPage() {
         return { ...o, status: mappedStatus };
       });
       
-      const filtered = mapped.filter((o) => !hiddenIds.includes(o.id));
-      setOrders(filtered);
+      const combined = [...mockList, ...mapped]
+        .filter((o) => !hiddenIds.includes(o.id))
+        .map((ord) => {
+          if (localStatuses[ord.id]) {
+            return { ...ord, status: localStatuses[ord.id].status };
+          }
+          return ord;
+        });
+      setOrders(combined);
     } catch (err: any) {
-      setOrders([]);
-      showToast(err.message || "Gagal memuat riwayat pemesanan.", "error");
+      // Fallback to local mock orders if API request fails
+      let mockList: OrderItem[] = [];
+      let localStatuses: any = {};
+      let hiddenIds: string[] = [];
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("mock_orders");
+        if (stored) {
+          mockList = JSON.parse(stored);
+        }
+        localStatuses = JSON.parse(localStorage.getItem("local_refund_statuses") || "{}");
+        hiddenIds = JSON.parse(localStorage.getItem("hidden_orders") || "[]");
+      }
+      const combined = mockList
+        .filter((o) => !hiddenIds.includes(o.id))
+        .map((ord) => {
+          if (localStatuses[ord.id]) {
+            return { ...ord, status: localStatuses[ord.id].status };
+          }
+          return ord;
+        });
+      setOrders(combined);
     } finally {
       setLoading(false);
     }
@@ -122,62 +158,8 @@ export default function HistoryPage() {
       } catch (e) {
         console.warn("Failed to fetch real wallet transactions:", e);
       }
-      
-      // Load simulated topups
-      let mockTopups: any[] = [];
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("mock_topups");
-        if (stored) {
-          mockTopups = JSON.parse(stored).map((tx: any, idx: number) => ({
-            id: `mock-tx-topup-${idx}`,
-            amount: tx.amount,
-            type: "topup",
-            description: tx.description || "Topup Saldo",
-            date: tx.date || tx.createdAt || new Date().toISOString()
-          }));
-        }
-      }
-      
-      // Load refund statuses as refund transactions
-      let mockRefunds: any[] = [];
-      if (typeof window !== "undefined") {
-        const localStatuses = JSON.parse(localStorage.getItem("local_refund_statuses") || "{}");
-        Object.keys(localStatuses).forEach((id) => {
-          const item = localStatuses[id];
-          if (item.status === "refunded") {
-            mockRefunds.push({
-              id: `mock-tx-refund-${id}`,
-              amount: item.price || 0,
-              type: "refund",
-              description: `Refund Tiket ${item.vehicleName || ""} - Kursi ${item.seatNumber || ""}`,
-              date: item.timestamp || new Date().toISOString()
-            });
-          }
-        });
-      }
-
-      // Load simulated bookings
-      let mockBookings: any[] = [];
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("mock_orders");
-        if (stored) {
-          mockBookings = JSON.parse(stored).map((ord: any) => ({
-            id: `mock-tx-booking-${ord.id}`,
-            amount: -Number(ord.ticket?.price || 0),
-            type: "booking",
-            description: `Pembelian Tiket ${ord.ticket?.schedule?.vehicleName || ""} (${ord.ticket?.schedule?.vehicleCode || ""})`,
-            date: ord.createdAt || new Date().toISOString()
-          }));
-        }
-      }
-
-      // Combine and sort
-      const combined = [
-        ...apiTx,
-        ...mockTopups,
-        ...mockRefunds,
-        ...mockBookings
-      ].sort((a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime());
+      // Combine and sort real database transactions
+      const combined = [...(apiTx || [])].sort((a, b) => new Date(b.date || b.createdAt || b.created_at).getTime() - new Date(a.date || a.createdAt || a.created_at).getTime());
 
       setTransactions(combined);
     } catch (err: any) {
@@ -242,11 +224,46 @@ export default function HistoryPage() {
 
     setRefundSubmitting(true);
     try {
-      // Call backend API to request refund
-      await apiRequest(`/api/orders/${activeRefundOrder.id}/request-refund`, {
-        method: "POST",
-        body: { refund_reason: refundReason }
-      });
+      const isMockRefund = activeRefundOrder.id.startsWith("mock-order-");
+
+      if (isMockRefund) {
+        // Save refund details to local_refund_statuses so the admin dashboard can see it,
+        // and so the user's history page displays it as "pending_refund".
+        const localRefundStatuses = JSON.parse(localStorage.getItem("local_refund_statuses") || "{}");
+        localRefundStatuses[activeRefundOrder.id] = {
+          status: "pending_refund",
+          price: activeRefundOrder.ticket.price,
+          passengerName: activeRefundOrder.passengerName,
+          vehicleName: activeRefundOrder.ticket.schedule.vehicleName,
+          origin: activeRefundOrder.ticket.schedule.route.origin,
+          destination: activeRefundOrder.ticket.schedule.route.destination,
+          vehicleCode: activeRefundOrder.ticket.schedule.vehicleCode,
+          seatNumber: activeRefundOrder.ticket.seatNumber,
+          refundReason: refundReason,
+          transportType: activeRefundOrder.ticket.schedule.route.transportType,
+          timestamp: new Date().toISOString()
+        };
+        localStorage.setItem("local_refund_statuses", JSON.stringify(localRefundStatuses));
+
+        // Also update the status inside mock_orders for consistency
+        const stored = localStorage.getItem("mock_orders");
+        if (stored) {
+          const list: OrderItem[] = JSON.parse(stored);
+          const updated = list.map((ord) => {
+            if (ord.id === activeRefundOrder.id) {
+              return { ...ord, status: "pending_refund" };
+            }
+            return ord;
+          });
+          localStorage.setItem("mock_orders", JSON.stringify(updated));
+        }
+      } else {
+        // Call backend API to request refund
+        await apiRequest(`/api/orders/${activeRefundOrder.id}/request-refund`, {
+          method: "POST",
+          body: { refund_reason: refundReason }
+        });
+      }
 
       showToast("Refund tiket berhasil diajukan, menunggu konfirmasi Admin.", "success");
       
@@ -801,7 +818,7 @@ export default function HistoryPage() {
                     <div className="w-[4px] h-full bg-slate-900"></div>
                   </div>
                   <span className="text-[10px] text-slate-400 tracking-widest font-mono uppercase">
-                    ORDER-{activeTicket.id.substring(0, 8)}
+                    {activeTicket.orderCode || activeTicket.order_code || `ORDER-${activeTicket.id.substring(0, 8)}`}
                   </span>
                 </div>
                 <p className="text-[11px] text-center text-slate-400 no-print">

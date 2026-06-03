@@ -113,9 +113,9 @@ export default function HomePage() {
   };
 
   // Filter routes based on transport type for suggestions
-  const activeRoutes = routes.filter((r) => r.transportType === transportType);
-  const uniqueOrigins = Array.from(new Set(activeRoutes.map((r) => r.origin)));
-  const uniqueDestinations = Array.from(new Set(activeRoutes.map((r) => r.destination)));
+  const activeRoutes = (routes || []).filter((r) => r && r.transportType === transportType);
+  const uniqueOrigins = Array.from(new Set(activeRoutes.map((r) => r.origin).filter(Boolean)));
+  const uniqueDestinations = Array.from(new Set(activeRoutes.map((r) => r.destination).filter(Boolean)));
 
   if (loading) {
     return (

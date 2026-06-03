@@ -108,32 +108,7 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  const handleTopUpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = Number(topUpAmount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      showToast("Jumlah top up harus valid.", "error");
-      return;
-    }
 
-    try {
-      const stored = localStorage.getItem("mock_topups");
-      const list = stored ? JSON.parse(stored) : [];
-      list.push({
-        amount: amountNum,
-        date: new Date().toISOString(),
-        description: "Top Up Mandiri (Simulasi)"
-      });
-      localStorage.setItem("mock_topups", JSON.stringify(list));
-      
-      showToast(`Top up sebesar ${formatRupiah(amountNum)} berhasil!`, "success");
-      setShowTopUpModal(false);
-      setTopUpAmount("100000");
-      await fetchBalance();
-    } catch (err) {
-      showToast("Gagal melakukan top up.", "error");
-    }
-  };
 
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -523,8 +498,8 @@ export const Navbar: React.FC = () => {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl max-w-sm w-full p-6 animate-scale-in">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <WalletIcon size={20} className="text-emerald-600" />
-                <span>Top Up Saldo (Simulasi)</span>
+                <WalletIcon size={20} className="text-blue-600" />
+                <span>Informasi Pengisian Saldo</span>
               </h3>
               <button
                 onClick={() => setShowTopUpModal(false)}
@@ -534,48 +509,27 @@ export const Navbar: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleTopUpSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-                  Nominal Top Up (Rupiah)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="1000"
-                  value={topUpAmount}
-                  onChange={(e) => setTopUpAmount(e.target.value)}
-                  placeholder="Masukkan nominal"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-sm text-slate-800 font-semibold"
-                />
+            <div className="space-y-4 text-slate-600 text-xs leading-relaxed font-medium">
+              <p>
+                Untuk menjaga keamanan finansial, pengisian saldo (Top Up) akun Anda tidak dapat dilakukan secara mandiri dari aplikasi customer.
+              </p>
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-xl text-blue-700 space-y-1">
+                <p className="font-bold flex items-center gap-1">💡 Cara Isi Saldo:</p>
+                <ol className="list-decimal pl-4 space-y-1 mt-1 text-slate-600">
+                  <li>Kunjungi stasiun kereta atau bandara terdekat.</li>
+                  <li>Temui petugas loket pembayaran (Super Admin).</li>
+                  <li>Sebutkan username akun Anda: <strong className="text-blue-700 font-bold font-mono">{user?.username}</strong></li>
+                  <li>Lakukan pembayaran tunai/debit, dan Super Admin akan langsung melakukan Top Up saldo secara real-time ke akun Anda.</li>
+                </ol>
               </div>
-
-              {/* Quick Select Grid */}
-              <div className="grid grid-cols-2 gap-2">
-                {[50000, 100000, 200000, 500000].map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setTopUpAmount(String(amt))}
-                    className={`py-2 px-3 border rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                      topUpAmount === String(amt)
-                        ? "border-emerald-500 bg-emerald-50/50 text-emerald-700"
-                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    {formatRupiah(amt)}
-                  </button>
-                ))}
-              </div>
-
               <button
-                type="submit"
-                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-all shadow-md shadow-emerald-500/10 hover:shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer mt-2 text-sm"
+                type="button"
+                onClick={() => setShowTopUpModal(false)}
+                className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all cursor-pointer text-center"
               >
-                <WalletIcon size={16} />
-                <span>Top Up Sekarang</span>
+                Mengerti
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
